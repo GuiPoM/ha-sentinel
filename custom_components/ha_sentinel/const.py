@@ -49,6 +49,8 @@ EXCLUDED_DOMAINS = {
     "repairs",
     "persistent_notification",
     "homeassistant",
+    "hacs",       # HACS manages itself, not a monitored integration
+    "ha_sentinel", # Never watch ourselves
 }
 
 # Event fired on state change

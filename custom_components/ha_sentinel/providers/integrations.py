@@ -123,9 +123,6 @@ class IntegrationsProvider(HealthProvider):
 
     def _should_watch(self, entry: ConfigEntry) -> bool:
         """Return True if this entry should be monitored."""
-        # Never watch ourselves
-        if entry.domain == "ha_sentinel":
-            return False
         # Explicit opt-out always wins
         if entry.entry_id in self._excluded:
             return False
@@ -135,7 +132,7 @@ class IntegrationsProvider(HealthProvider):
         # Skip system internals and user-ignored discoveries
         if entry.source in EXCLUDED_SOURCES:
             return False
-        # Skip HA helper/utility domains
+        # Skip HA helper/utility domains (includes ha_sentinel and hacs)
         if entry.domain in EXCLUDED_DOMAINS:
             return False
         return True
