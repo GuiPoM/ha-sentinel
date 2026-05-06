@@ -90,12 +90,14 @@ class SentinelOptionsFlow(OptionsFlow):
             and entry.domain not in EXCLUDED_DOMAINS
         }
 
-        # Entries NOT watched by default — shown in "Extra" list (what you can opt-in)
+        # Entries NOT watched by default but potentially useful — shown in "Extra" list
+        # Only real integrations (not helper domains) that were excluded by source
         extra_entries = {
             entry.entry_id: f"{entry.title} ({entry.domain}) [{entry.source}]"
             for entry in self.hass.config_entries.async_entries()
             if entry.domain != DOMAIN
-            and (entry.source in EXCLUDED_SOURCES or entry.domain in EXCLUDED_DOMAINS)
+            and entry.domain not in EXCLUDED_DOMAINS
+            and entry.source in EXCLUDED_SOURCES
         }
 
         schema = vol.Schema(
