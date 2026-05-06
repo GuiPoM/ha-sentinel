@@ -7,7 +7,11 @@ import voluptuous as vol
 
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow
 from homeassistant.core import callback
-from homeassistant.data_entry_flow import FlowResult
+from homeassistant.helpers.selector import (
+    SelectSelector,
+    SelectSelectorConfig,
+    SelectSelectorMode,
+)
 
 from .const import (
     CONF_EXCLUDED_ENTRIES,
@@ -27,9 +31,8 @@ class SentinelConfigFlow(ConfigFlow, domain=DOMAIN):
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> dict[str, Any]:
         """Handle the initial setup step."""
-        # Only one instance allowed (single_config_entry: true in manifest)
         await self.async_set_unique_id(DOMAIN)
         self._abort_if_unique_id_configured()
 
@@ -59,21 +62,17 @@ class SentinelConfigFlow(ConfigFlow, domain=DOMAIN):
     @callback
     def async_get_options_flow(config_entry: ConfigEntry) -> SentinelOptionsFlow:
         """Return the options flow."""
-        return SentinelOptionsFlow(config_entry)
+        return SentinelOptionsFlow()
 
 
 class SentinelOptionsFlow(OptionsFlow):
     """Options flow for HA Sentinel."""
 
-    def __init__(self, config_entry: ConfigEntry) -> None:
-        """Initialize options flow."""
-        self._config_entry = config_entry
-
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> dict[str, Any]:
         """Manage options."""
-        current = self._config_entry.options
+        current = self.config_entry.options
 
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
@@ -98,22 +97,14 @@ class SentinelOptionsFlow(OptionsFlow):
                 vol.Optional(
                     CONF_EXCLUDED_ENTRIES,
                     default=current.get(CONF_EXCLUDED_ENTRIES, []),
-                ): vol.All(
-                    cv_multi_select(all_entries)
+                ): SelectSelector(
+                    SelectSelectorConfig(
+                        options=[{"value": k, "label": v} for k, v in all_entries.items()],
+                        multiple=True,
+                        mode=SelectSelectorMode.LIST,
+                    )
                 ),
             }
         )
 
         return self.async_show_form(step_id="init", data_schema=schema)
-
-
-def cv_multi_select(options: dict) -> Any:
-    """Return a multi-select selector compatible with HA options flow."""
-    from homeassistant.helpers.selector import SelectSelector, SelectSelectorConfig, SelectSelectorMode
-    return SelectSelector(
-        SelectSelectorConfig(
-            options=[{"value": k, "label": v} for k, v in options.items()],
-            multiple=True,
-            mode=SelectSelectorMode.LIST,
-        )
-    )
