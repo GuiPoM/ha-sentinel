@@ -141,7 +141,16 @@ automation:
 
 ## Lovelace Card
 
-Install the card resource from `lovelace/ha-sentinel-card.js` (add as `/local/ha-sentinel-card.js`).
+The Lovelace card lives in a separate HACS-compatible repository:
+**[GuiPoM/lovelace-ha-sentinel](https://github.com/GuiPoM/lovelace-ha-sentinel)**
+
+### Installation via HACS
+
+1. In HACS, go to **Frontend** → **Custom repositories**
+2. Add `https://github.com/GuiPoM/lovelace-ha-sentinel` as a **Dashboard** type
+3. Install **HA Sentinel Card** and refresh your browser
+
+### Usage
 
 ```yaml
 type: custom:ha-sentinel-card
