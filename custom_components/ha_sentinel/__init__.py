@@ -38,11 +38,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
+    # Clean up orphaned entities BEFORE setting up platforms
+    # so they are not re-added by the platform setup
+    _async_cleanup_orphaned_entities(hass, entry, coordinator)
+
     # Forward setup to platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-
-    # Clean up orphaned entities that should no longer be monitored
-    _async_cleanup_orphaned_entities(hass, entry, coordinator)
 
     # Register services
     async def handle_reload(call: ServiceCall) -> None:
