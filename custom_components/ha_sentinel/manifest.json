@@ -1,7 +1,7 @@
 {
   "domain": "ha_sentinel",
   "name": "Sentinel",
-  "version": "0.2.8",
+  "version": "0.2.9",
   "documentation": "https://github.com/GuiPoM/ha-sentinel",
   "issue_tracker": "https://github.com/GuiPoM/ha-sentinel/issues",
   "codeowners": ["@GuiPoM"],

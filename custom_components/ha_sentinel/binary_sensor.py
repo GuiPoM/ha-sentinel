@@ -65,6 +65,7 @@ class SentinelBinarySensor(BinarySensorEntity):
     _attr_device_class = BinarySensorDeviceClass.PROBLEM
     _attr_has_entity_name = True
     _attr_should_poll = False
+    _attr_icon = "mdi:shield-check"
 
     def __init__(self, coordinator: SentinelCoordinator, item: HealthItem) -> None:
         """Initialize the binary sensor."""
