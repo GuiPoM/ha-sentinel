@@ -7,7 +7,7 @@ import voluptuous as vol
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
-from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import config_validation as cv, entity_registry as er
 
 from .const import DOMAIN
 from .coordinator import SentinelCoordinator
@@ -41,6 +41,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Forward setup to platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
+    # Clean up orphaned entities that should no longer be monitored
+    _async_cleanup_orphaned_entities(hass, entry, coordinator)
+
     # Register services
     async def handle_reload(call: ServiceCall) -> None:
         item_id = call.data["item_id"]
@@ -63,8 +66,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Re-apply config when options are updated
     entry.async_on_unload(entry.add_update_listener(_async_update_options))
 
-    _LOGGER.info("HA Sentinel set up successfully.")
+    _LOGGER.info("Sentinel set up successfully.")
     return True
+
+
+def _async_cleanup_orphaned_entities(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    coordinator: SentinelCoordinator,
+) -> None:
+    """Remove entities in the registry that are no longer monitored."""
+    registry = er.async_get(hass)
+    known_ids = {f"{DOMAIN}_{item.id}" for item in coordinator.get_all_items()}
+
+    for entity_entry in er.async_entries_for_config_entry(registry, entry.entry_id):
+        if entity_entry.unique_id not in known_ids:
+            _LOGGER.debug(
+                "Sentinel: removing orphaned entity %s (unique_id=%s)",
+                entity_entry.entity_id,
+                entity_entry.unique_id,
+            )
+            registry.async_remove(entity_entry.entity_id)
 
 
 async def _async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
