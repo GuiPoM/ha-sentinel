@@ -1,9 +1,9 @@
 {
-  "title": "HA Sentinel",
+        "title": "Sentinel",
   "config": {
     "step": {
       "user": {
-        "title": "HA Sentinel",
+  "title": "Sentinel",
         "description": "Monitor the health of your Home Assistant integrations and get notified when something breaks.",
         "data": {
           "grace_period": "Grace period (seconds)",
@@ -22,7 +22,7 @@
   "options": {
     "step": {
       "init": {
-        "title": "HA Sentinel Options",
+        "title": "Sentinel Options",
         "data": {
           "grace_period": "Grace period (seconds)",
           "fire_events": "Fire bus events on state changes",

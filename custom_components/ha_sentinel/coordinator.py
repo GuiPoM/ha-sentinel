@@ -13,6 +13,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_send
 
 from .const import (
     CONF_EXCLUDED_ENTRIES,
+    CONF_EXTRA_ENTRIES,
     CONF_FIRE_EVENTS,
     CONF_GRACE_PERIOD,
     DEFAULT_FIRE_EVENTS,
@@ -41,17 +42,19 @@ class SentinelCoordinator:
         """Set up all providers."""
         grace_period: int = self._config.get(CONF_GRACE_PERIOD, DEFAULT_GRACE_PERIOD)
         excluded: list[str] = self._config.get(CONF_EXCLUDED_ENTRIES, [])
+        extra: list[str] = self._config.get(CONF_EXTRA_ENTRIES, [])
 
         # v1: integrations provider
         integrations_provider = IntegrationsProvider(
             self.hass,
             excluded_entry_ids=set(excluded),
+            extra_entry_ids=set(extra),
             grace_period=grace_period,
         )
         self._providers[PROVIDER_INTEGRATIONS] = integrations_provider
         await integrations_provider.async_setup(self._on_item_changed)
 
-        _LOGGER.debug("HA Sentinel coordinator set up with providers: %s", list(self._providers))
+        _LOGGER.debug("Sentinel coordinator set up with providers: %s", list(self._providers))
 
     async def async_unload(self) -> None:
         """Unload all providers."""
@@ -106,7 +109,7 @@ class SentinelCoordinator:
         for provider in self._providers.values():
             if provider.get_item(item_id) is not None:
                 return await provider.async_reload_item(item_id)
-        _LOGGER.warning("HA Sentinel: Cannot reload unknown item %s", item_id)
+        _LOGGER.warning("Sentinel: Cannot reload unknown item %s", item_id)
         return False
 
     async def async_reset_failure_count(self, item_id: str) -> None:
@@ -126,4 +129,6 @@ class SentinelCoordinator:
             provider = self._providers[PROVIDER_INTEGRATIONS]
             if isinstance(provider, IntegrationsProvider):
                 excluded = set(new_config.get(CONF_EXCLUDED_ENTRIES, []))
+                extra = set(new_config.get(CONF_EXTRA_ENTRIES, []))
                 provider.update_excluded(excluded)
+                provider.update_extra(extra)

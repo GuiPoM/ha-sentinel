@@ -21,16 +21,20 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
 from ..const import (
     DEFAULT_GRACE_PERIOD,
+    ERROR_STATES,
     HEALTHY_STATES,
+    INACTIVE_STATES,
     PROBLEM_STATES,
     PROVIDER_INTEGRATIONS,
     TRANSIENT_STATES,
+    WATCHED_SOURCES,
+    WARNING_STATES,
 )
 from . import HealthItem, HealthProvider
 
 _LOGGER = logging.getLogger(__name__)
 
-# Map ConfigEntryState to our string representation
+# Exhaustive map of all known ConfigEntryState values
 _STATE_MAP: dict[ConfigEntryState, str] = {
     ConfigEntryState.LOADED: "loaded",
     ConfigEntryState.SETUP_ERROR: "setup_error",
@@ -44,7 +48,20 @@ _STATE_MAP: dict[ConfigEntryState, str] = {
 
 
 def _entry_state_str(entry: ConfigEntry) -> str:
-    return _STATE_MAP.get(entry.state, entry.state.value)
+    """Return a string representation of the entry state.
+
+    Falls back to the raw enum value for any unknown future states,
+    and logs a warning so we know to update the map.
+    """
+    mapped = _STATE_MAP.get(entry.state)
+    if mapped is None:
+        _LOGGER.warning(
+            "Sentinel: unknown ConfigEntryState %r for entry %r — treating as warning",
+            entry.state,
+            entry.title,
+        )
+        return entry.state.value  # unknown → treated as warning by _is_problem
+    return mapped
 
 
 def _is_healthy(state_str: str) -> bool:
@@ -52,7 +69,25 @@ def _is_healthy(state_str: str) -> bool:
 
 
 def _is_problem(state_str: str) -> bool:
-    return state_str in PROBLEM_STATES
+    """Return True for any non-healthy, non-transient, non-inactive state.
+
+    Unknown future states (not in any known set) are treated as warnings.
+    """
+    return state_str not in HEALTHY_STATES and state_str not in TRANSIENT_STATES and state_str not in INACTIVE_STATES
+
+
+def _get_severity(state_str: str) -> str:
+    """Return 'error', 'warning', or 'ok'."""
+    if state_str in ERROR_STATES:
+        return "error"
+    if state_str in WARNING_STATES:
+        return "warning"
+    if state_str in HEALTHY_STATES:
+        return "ok"
+    if state_str in TRANSIENT_STATES or state_str in INACTIVE_STATES:
+        return "ok"
+    # Unknown future state → warning
+    return "warning"
 
 
 class IntegrationsProvider(HealthProvider):
@@ -62,11 +97,13 @@ class IntegrationsProvider(HealthProvider):
         self,
         hass: HomeAssistant,
         excluded_entry_ids: set[str] | None = None,
+        extra_entry_ids: set[str] | None = None,
         grace_period: int = DEFAULT_GRACE_PERIOD,
     ) -> None:
         """Initialize the integrations provider."""
         super().__init__(hass)
         self._excluded: set[str] = excluded_entry_ids or set()
+        self._extra: set[str] = extra_entry_ids or set()
         self._grace_period = grace_period
         self._on_change: Callable[[HealthItem], None] | None = None
         self._unsubscribe: Callable | None = None
@@ -83,13 +120,23 @@ class IntegrationsProvider(HealthProvider):
     def name(self) -> str:
         return "Integrations"
 
+    def _should_watch(self, entry: ConfigEntry) -> bool:
+        """Return True if this entry should be monitored."""
+        if entry.entry_id in self._excluded:
+            return False
+        # Always include manually added extra entries
+        if entry.entry_id in self._extra:
+            return True
+        # By default, only watch user-configured integrations
+        return entry.source in WATCHED_SOURCES
+
     async def async_setup(self, on_change_callback: Callable[[HealthItem], None]) -> None:
         """Set up the provider: snapshot all current entries and subscribe to changes."""
         self._on_change = on_change_callback
 
         # Snapshot all existing config entries
         for entry in self.hass.config_entries.async_entries():
-            if entry.entry_id in self._excluded:
+            if not self._should_watch(entry):
                 continue
             item = self._build_item(entry)
             self._items[entry.entry_id] = item
@@ -234,6 +281,7 @@ class IntegrationsProvider(HealthProvider):
             provider=PROVIDER_INTEGRATIONS,
             healthy=healthy,
             state=state_str,
+            severity=_get_severity(state_str),
             reason=getattr(entry, "reason", None),
             since=existing.since if existing and existing.healthy == healthy else datetime.now(),
             failure_count=existing.failure_count if existing else failure_count,
@@ -249,3 +297,7 @@ class IntegrationsProvider(HealthProvider):
     def update_excluded(self, excluded_entry_ids: set[str]) -> None:
         """Update the set of excluded entry IDs."""
         self._excluded = excluded_entry_ids
+
+    def update_extra(self, extra_entry_ids: set[str]) -> None:
+        """Update the set of extra (opt-in) entry IDs."""
+        self._extra = extra_entry_ids

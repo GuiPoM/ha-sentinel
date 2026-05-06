@@ -15,12 +15,14 @@ from homeassistant.helpers.selector import (
 
 from .const import (
     CONF_EXCLUDED_ENTRIES,
+    CONF_EXTRA_ENTRIES,
     CONF_FIRE_EVENTS,
     CONF_GRACE_PERIOD,
     DEFAULT_FIRE_EVENTS,
     DEFAULT_GRACE_PERIOD,
     DOMAIN,
     NAME,
+    WATCHED_SOURCES,
 )
 
 
@@ -44,6 +46,7 @@ class SentinelConfigFlow(ConfigFlow, domain=DOMAIN):
                     CONF_GRACE_PERIOD: user_input.get(CONF_GRACE_PERIOD, DEFAULT_GRACE_PERIOD),
                     CONF_FIRE_EVENTS: user_input.get(CONF_FIRE_EVENTS, DEFAULT_FIRE_EVENTS),
                     CONF_EXCLUDED_ENTRIES: [],
+                    CONF_EXTRA_ENTRIES: [],
                 },
             )
 
@@ -77,11 +80,18 @@ class SentinelOptionsFlow(OptionsFlow):
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
-        # Build the list of all config entry titles for the multi-select exclusion list
-        all_entries = {
+        # Entries watched by default (source=user) — shown in "Excluded" list
+        user_entries = {
             entry.entry_id: f"{entry.title} ({entry.domain})"
             for entry in self.hass.config_entries.async_entries()
-            if entry.domain != DOMAIN
+            if entry.domain != DOMAIN and entry.source in WATCHED_SOURCES
+        }
+
+        # Entries NOT watched by default (auto-discovered) — shown in "Extra" list
+        auto_entries = {
+            entry.entry_id: f"{entry.title} ({entry.domain}) [{entry.source}]"
+            for entry in self.hass.config_entries.async_entries()
+            if entry.domain != DOMAIN and entry.source not in WATCHED_SOURCES
         }
 
         schema = vol.Schema(
@@ -99,7 +109,17 @@ class SentinelOptionsFlow(OptionsFlow):
                     default=current.get(CONF_EXCLUDED_ENTRIES, []),
                 ): SelectSelector(
                     SelectSelectorConfig(
-                        options=[{"value": k, "label": v} for k, v in all_entries.items()],
+                        options=[{"value": k, "label": v} for k, v in user_entries.items()],
+                        multiple=True,
+                        mode=SelectSelectorMode.LIST,
+                    )
+                ),
+                vol.Optional(
+                    CONF_EXTRA_ENTRIES,
+                    default=current.get(CONF_EXTRA_ENTRIES, []),
+                ): SelectSelector(
+                    SelectSelectorConfig(
+                        options=[{"value": k, "label": v} for k, v in auto_entries.items()],
                         multiple=True,
                         mode=SelectSelectorMode.LIST,
                     )

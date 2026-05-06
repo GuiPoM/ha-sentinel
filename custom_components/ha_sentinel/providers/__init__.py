@@ -29,6 +29,9 @@ class HealthItem:
     state: str
     """Raw state string from the underlying system."""
 
+    severity: str = "ok"
+    """Severity: 'ok', 'warning', or 'error'."""
+
     reason: str | None = None
     """Error reason/message if unhealthy."""
 
