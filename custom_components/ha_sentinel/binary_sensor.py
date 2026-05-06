@@ -75,12 +75,12 @@ class SentinelBinarySensor(BinarySensorEntity):
 
     @property
     def device_info(self) -> DeviceInfo:
-        """Group all entities under a single HA Sentinel device."""
+        """Group all entities under a single Sentinel device."""
         return DeviceInfo(
             identifiers={(DOMAIN, "ha_sentinel_main")},
             name=NAME,
             manufacturer="GuiPoM",
-            model="HA Sentinel",
+            model="Sentinel",
         )
 
     @property

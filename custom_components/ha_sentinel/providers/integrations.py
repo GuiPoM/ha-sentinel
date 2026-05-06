@@ -123,6 +123,9 @@ class IntegrationsProvider(HealthProvider):
 
     def _should_watch(self, entry: ConfigEntry) -> bool:
         """Return True if this entry should be monitored."""
+        # Never watch ourselves
+        if entry.domain == "ha_sentinel":
+            return False
         # Explicit opt-out always wins
         if entry.entry_id in self._excluded:
             return False
