@@ -27,6 +27,9 @@ SERVICE_RESET_FAILURE_COUNT_SCHEMA = vol.Schema(
     {vol.Required("item_id"): cv.string}
 )
 
+SERVICE_CHECK = "check"
+SERVICE_CHECK_SCHEMA = vol.Schema({})
+
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up HA Sentinel from a config entry."""
@@ -54,6 +57,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         item_id = call.data["item_id"]
         await coordinator.async_reset_failure_count(item_id)
 
+    async def handle_check(call: ServiceCall) -> None:
+        """Re-fire events for all currently unhealthy items."""
+        coordinator.async_recheck()
+
     hass.services.async_register(
         DOMAIN, SERVICE_RELOAD, handle_reload, schema=SERVICE_RELOAD_SCHEMA
     )
@@ -62,6 +69,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         SERVICE_RESET_FAILURE_COUNT,
         handle_reset_failure_count,
         schema=SERVICE_RESET_FAILURE_COUNT_SCHEMA,
+    )
+    hass.services.async_register(
+        DOMAIN, SERVICE_CHECK, handle_check, schema=SERVICE_CHECK_SCHEMA
     )
 
     # Re-apply config when options are updated
@@ -107,5 +117,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if not hass.data[DOMAIN]:
             hass.services.async_remove(DOMAIN, SERVICE_RELOAD)
             hass.services.async_remove(DOMAIN, SERVICE_RESET_FAILURE_COUNT)
+            hass.services.async_remove(DOMAIN, SERVICE_CHECK)
 
     return unload_ok

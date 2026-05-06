@@ -86,6 +86,16 @@ class SentinelCoordinator:
         # Dispatch internal signal so entities can update themselves
         async_dispatcher_send(self.hass, SIGNAL_SENTINEL_UPDATE, item)
 
+    @callback
+    def async_recheck(self) -> None:
+        """Re-fire events for all currently unhealthy items.
+
+        Useful to trigger automations on demand without waiting for a state change.
+        """
+        for item in self.get_all_items():
+            if not item.healthy:
+                self._on_item_changed(item)
+
     def get_all_items(self) -> list[HealthItem]:
         """Return all monitored items across all providers."""
         items = []
