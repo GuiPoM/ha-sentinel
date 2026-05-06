@@ -22,12 +22,13 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from ..const import (
     DEFAULT_GRACE_PERIOD,
     ERROR_STATES,
+    EXCLUDED_DOMAINS,
+    EXCLUDED_SOURCES,
     HEALTHY_STATES,
     INACTIVE_STATES,
     PROBLEM_STATES,
     PROVIDER_INTEGRATIONS,
     TRANSIENT_STATES,
-    WATCHED_SOURCES,
     WARNING_STATES,
 )
 from . import HealthItem, HealthProvider
@@ -122,13 +123,19 @@ class IntegrationsProvider(HealthProvider):
 
     def _should_watch(self, entry: ConfigEntry) -> bool:
         """Return True if this entry should be monitored."""
+        # Explicit opt-out always wins
         if entry.entry_id in self._excluded:
             return False
-        # Always include manually added extra entries
+        # Explicit opt-in always wins
         if entry.entry_id in self._extra:
             return True
-        # By default, only watch user-configured integrations
-        return entry.source in WATCHED_SOURCES
+        # Skip system internals and user-ignored discoveries
+        if entry.source in EXCLUDED_SOURCES:
+            return False
+        # Skip HA helper/utility domains
+        if entry.domain in EXCLUDED_DOMAINS:
+            return False
+        return True
 
     async def async_setup(self, on_change_callback: Callable[[HealthItem], None]) -> None:
         """Set up the provider: snapshot all current entries and subscribe to changes."""

@@ -21,8 +21,9 @@ from .const import (
     DEFAULT_FIRE_EVENTS,
     DEFAULT_GRACE_PERIOD,
     DOMAIN,
+    EXCLUDED_DOMAINS,
+    EXCLUDED_SOURCES,
     NAME,
-    WATCHED_SOURCES,
 )
 
 
@@ -80,18 +81,21 @@ class SentinelOptionsFlow(OptionsFlow):
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
-        # Entries watched by default (source=user) — shown in "Excluded" list
-        user_entries = {
+        # Entries watched by default — shown in "Excluded" list (what you can opt-out)
+        watched_entries = {
             entry.entry_id: f"{entry.title} ({entry.domain})"
             for entry in self.hass.config_entries.async_entries()
-            if entry.domain != DOMAIN and entry.source in WATCHED_SOURCES
+            if entry.domain != DOMAIN
+            and entry.source not in EXCLUDED_SOURCES
+            and entry.domain not in EXCLUDED_DOMAINS
         }
 
-        # Entries NOT watched by default (auto-discovered) — shown in "Extra" list
-        auto_entries = {
+        # Entries NOT watched by default — shown in "Extra" list (what you can opt-in)
+        extra_entries = {
             entry.entry_id: f"{entry.title} ({entry.domain}) [{entry.source}]"
             for entry in self.hass.config_entries.async_entries()
-            if entry.domain != DOMAIN and entry.source not in WATCHED_SOURCES
+            if entry.domain != DOMAIN
+            and (entry.source in EXCLUDED_SOURCES or entry.domain in EXCLUDED_DOMAINS)
         }
 
         schema = vol.Schema(
@@ -109,7 +113,7 @@ class SentinelOptionsFlow(OptionsFlow):
                     default=current.get(CONF_EXCLUDED_ENTRIES, []),
                 ): SelectSelector(
                     SelectSelectorConfig(
-                        options=[{"value": k, "label": v} for k, v in user_entries.items()],
+                        options=[{"value": k, "label": v} for k, v in watched_entries.items()],
                         multiple=True,
                         mode=SelectSelectorMode.LIST,
                     )
@@ -119,7 +123,7 @@ class SentinelOptionsFlow(OptionsFlow):
                     default=current.get(CONF_EXTRA_ENTRIES, []),
                 ): SelectSelector(
                     SelectSelectorConfig(
-                        options=[{"value": k, "label": v} for k, v in auto_entries.items()],
+                        options=[{"value": k, "label": v} for k, v in extra_entries.items()],
                         multiple=True,
                         mode=SelectSelectorMode.LIST,
                     )

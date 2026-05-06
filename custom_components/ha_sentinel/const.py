@@ -15,11 +15,41 @@ CONF_FIRE_EVENTS = "fire_events"
 DEFAULT_GRACE_PERIOD = 30  # seconds
 DEFAULT_FIRE_EVENTS = True
 
-# Sources considered "user-configured integrations" — monitored by default
-WATCHED_SOURCES = {"user", "import", "repair"}
+# Sources that are always excluded — system internals or user-ignored discoveries
+EXCLUDED_SOURCES = {"system", "ignore"}
 
-# Sources considered "auto-discovered devices" — ignored by default
-AUTO_SOURCES = {"bluetooth", "dhcp", "zeroconf", "hassio_discovery", "ssdp", "homekit", "mqtt"}
+# Domains that are HA-internal helpers/utilities, not real integrations
+EXCLUDED_DOMAINS = {
+    "template",
+    "group",
+    "ping",
+    "uptime",
+    "local_file",
+    "shell_command",
+    "smtp",
+    "input_boolean",
+    "input_number",
+    "input_select",
+    "input_text",
+    "input_datetime",
+    "input_button",
+    "counter",
+    "timer",
+    "schedule",
+    "zone",
+    "person",
+    "tag",
+    "scene",
+    "script",
+    "automation",
+    "sun",
+    "moon",
+    "todo",
+    "calendar",
+    "repairs",
+    "persistent_notification",
+    "homeassistant",
+}
 
 # Event fired on state change
 EVENT_ITEM_CHANGED = f"{DOMAIN}_item_changed"
