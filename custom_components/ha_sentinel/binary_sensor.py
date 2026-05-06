@@ -66,16 +66,6 @@ class SentinelBinarySensor(BinarySensorEntity):
     _attr_has_entity_name = True
     _attr_should_poll = False
 
-    @property
-    def icon(self) -> str:
-        """Return icon based on severity and state."""
-        if not self._item.healthy:
-            severity = getattr(self._item, "severity", "warning")
-            if severity == "error":
-                return "mdi:alert-circle"
-            return "mdi:alert"
-        return "mdi:shield-check"
-
     def __init__(self, coordinator: SentinelCoordinator, item: HealthItem) -> None:
         """Initialize the binary sensor."""
         self._coordinator = coordinator
