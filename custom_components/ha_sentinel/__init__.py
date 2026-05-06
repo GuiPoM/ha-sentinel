@@ -89,12 +89,14 @@ def _async_cleanup_orphaned_entities(
     """Remove entities in the registry that are no longer monitored."""
     registry = er.async_get(hass)
     known_ids = {f"{DOMAIN}_{item.id}" for item in coordinator.get_all_items()}
+    # Also keep the global problems sensor
+    known_ids.add(f"{DOMAIN}_{entry.entry_id}_problem_count")
 
     _LOGGER.debug("Sentinel cleanup: known_ids=%s", known_ids)
 
     for entity_entry in er.async_entries_for_config_entry(registry, entry.entry_id):
         if entity_entry.unique_id not in known_ids:
-            _LOGGER.warning(
+            _LOGGER.debug(
                 "Sentinel: removing orphaned entity %s (unique_id=%s)",
                 entity_entry.entity_id,
                 entity_entry.unique_id,

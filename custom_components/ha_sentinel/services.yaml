@@ -1,0 +1,28 @@
+reload:
+  name: Reload integration
+  description: Reload a monitored integration by its config entry ID.
+  fields:
+    item_id:
+      name: Item ID
+      description: The config entry ID of the integration to reload.
+      required: true
+      example: "abc123def456"
+      selector:
+        text:
+
+reset_failure_count:
+  name: Reset failure count
+  description: Reset the failure counter for a monitored integration.
+  fields:
+    item_id:
+      name: Item ID
+      description: The config entry ID of the integration to reset.
+      required: true
+      example: "abc123def456"
+      selector:
+        text:
+
+check:
+  name: Check
+  description: Re-fire events for all currently unhealthy integrations. Useful to trigger automations on demand.
+  fields: {}
