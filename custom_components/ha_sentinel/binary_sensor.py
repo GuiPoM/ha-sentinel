@@ -71,7 +71,9 @@ class SentinelBinarySensor(BinarySensorEntity):
         self._coordinator = coordinator
         self._item = item
         self._attr_unique_id = f"{DOMAIN}_{item.id}"
-        self._attr_name = item.name
+        # Always show domain in name for clarity (title can be an email, IP, etc.)
+        domain = item.extra.get("domain", "")
+        self._attr_name = f"{item.name} ({domain})" if domain else item.name
 
     @property
     def device_info(self) -> DeviceInfo:
