@@ -1,0 +1,5 @@
+{
+  "name": "HA Sentinel",
+  "homeassistant": "2024.1.0",
+  "hacs": "1.34.0"
+}

@@ -1,0 +1,119 @@
+"""Config flow for HA Sentinel."""
+from __future__ import annotations
+
+from typing import Any
+
+import voluptuous as vol
+
+from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow
+from homeassistant.core import callback
+from homeassistant.data_entry_flow import FlowResult
+
+from .const import (
+    CONF_EXCLUDED_ENTRIES,
+    CONF_FIRE_EVENTS,
+    CONF_GRACE_PERIOD,
+    DEFAULT_FIRE_EVENTS,
+    DEFAULT_GRACE_PERIOD,
+    DOMAIN,
+    NAME,
+)
+
+
+class SentinelConfigFlow(ConfigFlow, domain=DOMAIN):
+    """Config flow for HA Sentinel (initial setup)."""
+
+    VERSION = 1
+
+    async def async_step_user(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle the initial setup step."""
+        # Only one instance allowed (single_config_entry: true in manifest)
+        await self.async_set_unique_id(DOMAIN)
+        self._abort_if_unique_id_configured()
+
+        if user_input is not None:
+            return self.async_create_entry(
+                title=NAME,
+                data={},
+                options={
+                    CONF_GRACE_PERIOD: user_input.get(CONF_GRACE_PERIOD, DEFAULT_GRACE_PERIOD),
+                    CONF_FIRE_EVENTS: user_input.get(CONF_FIRE_EVENTS, DEFAULT_FIRE_EVENTS),
+                    CONF_EXCLUDED_ENTRIES: [],
+                },
+            )
+
+        schema = vol.Schema(
+            {
+                vol.Optional(CONF_GRACE_PERIOD, default=DEFAULT_GRACE_PERIOD): vol.All(
+                    int, vol.Range(min=0, max=300)
+                ),
+                vol.Optional(CONF_FIRE_EVENTS, default=DEFAULT_FIRE_EVENTS): bool,
+            }
+        )
+
+        return self.async_show_form(step_id="user", data_schema=schema)
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: ConfigEntry) -> SentinelOptionsFlow:
+        """Return the options flow."""
+        return SentinelOptionsFlow(config_entry)
+
+
+class SentinelOptionsFlow(OptionsFlow):
+    """Options flow for HA Sentinel."""
+
+    def __init__(self, config_entry: ConfigEntry) -> None:
+        """Initialize options flow."""
+        self._config_entry = config_entry
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Manage options."""
+        current = self._config_entry.options
+
+        if user_input is not None:
+            return self.async_create_entry(title="", data=user_input)
+
+        # Build the list of all config entry titles for the multi-select exclusion list
+        all_entries = {
+            entry.entry_id: f"{entry.title} ({entry.domain})"
+            for entry in self.hass.config_entries.async_entries()
+            if entry.domain != DOMAIN
+        }
+
+        schema = vol.Schema(
+            {
+                vol.Optional(
+                    CONF_GRACE_PERIOD,
+                    default=current.get(CONF_GRACE_PERIOD, DEFAULT_GRACE_PERIOD),
+                ): vol.All(int, vol.Range(min=0, max=300)),
+                vol.Optional(
+                    CONF_FIRE_EVENTS,
+                    default=current.get(CONF_FIRE_EVENTS, DEFAULT_FIRE_EVENTS),
+                ): bool,
+                vol.Optional(
+                    CONF_EXCLUDED_ENTRIES,
+                    default=current.get(CONF_EXCLUDED_ENTRIES, []),
+                ): vol.All(
+                    cv_multi_select(all_entries)
+                ),
+            }
+        )
+
+        return self.async_show_form(step_id="init", data_schema=schema)
+
+
+def cv_multi_select(options: dict) -> Any:
+    """Return a multi-select selector compatible with HA options flow."""
+    from homeassistant.helpers.selector import SelectSelector, SelectSelectorConfig, SelectSelectorMode
+    return SelectSelector(
+        SelectSelectorConfig(
+            options=[{"value": k, "label": v} for k, v in options.items()],
+            multiple=True,
+            mode=SelectSelectorMode.LIST,
+        )
+    )

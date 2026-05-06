@@ -1,0 +1,47 @@
+{
+  "title": "HA Sentinel",
+  "config": {
+    "step": {
+      "user": {
+        "title": "HA Sentinel",
+        "description": "Monitor the health of your Home Assistant integrations and get notified when something breaks.",
+        "data": {
+          "grace_period": "Grace period (seconds)",
+          "fire_events": "Fire bus events on state changes"
+        },
+        "data_description": {
+          "grace_period": "How long an integration must remain in a failed state before being reported (0 = immediate).",
+          "fire_events": "Fire a `ha_sentinel_item_changed` event on the HA event bus whenever an item changes state. Useful for automations."
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "HA Sentinel is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "HA Sentinel Options",
+        "data": {
+          "grace_period": "Grace period (seconds)",
+          "fire_events": "Fire bus events on state changes",
+          "excluded_entries": "Excluded integrations"
+        },
+        "data_description": {
+          "grace_period": "How long an integration must remain in a failed state before being reported (0 = immediate).",
+          "fire_events": "Fire a `ha_sentinel_item_changed` event on the HA event bus whenever an item changes state.",
+          "excluded_entries": "Select integrations to exclude from monitoring."
+        }
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {},
+    "sensor": {
+      "problem_count": {
+        "name": "Problems"
+      }
+    }
+  }
+}

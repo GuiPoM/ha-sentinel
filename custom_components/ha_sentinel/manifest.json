@@ -1,0 +1,14 @@
+{
+  "domain": "ha_sentinel",
+  "name": "HA Sentinel",
+  "version": "0.1.0",
+  "documentation": "https://github.com/GuiPoM/ha-sentinel",
+  "issue_tracker": "https://github.com/GuiPoM/ha-sentinel/issues",
+  "codeowners": ["@GuiPoM"],
+  "requirements": [],
+  "dependencies": [],
+  "integration_type": "service",
+  "iot_class": "local_push",
+  "config_flow": true,
+  "single_config_entry": true
+}
