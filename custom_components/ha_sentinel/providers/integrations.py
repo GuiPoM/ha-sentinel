@@ -197,6 +197,10 @@ class IntegrationsProvider(HealthProvider):
                 self._pending_timers.pop(entry_id).cancel()
             return
 
+        # Skip entries that don't pass the watch filter (excluded domains/sources)
+        if not self._should_watch(entry):
+            return
+
         state_str = _entry_state_str(entry)
 
         # Ignore purely transient states (in-progress transitions)
