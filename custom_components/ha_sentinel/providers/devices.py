@@ -62,6 +62,9 @@ def _is_eligible(entity) -> bool:
     # Skip diagnostic / config entities
     if entity.entity_category is not None:
         return False
+    # Skip disabled entities — their state is always unavailable, not a real problem
+    if entity.disabled_by is not None:
+        return False
     domain = entity.domain
     device_class = entity.original_device_class or entity.device_class
     if domain in PHYSICAL_DOMAINS:
