@@ -8,18 +8,33 @@ import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow
 from homeassistant.core import callback
 from homeassistant.helpers.selector import (
+    BooleanSelector,
+    DeviceSelector,
+    DeviceSelectorConfig,
+    NumberSelector,
+    NumberSelectorConfig,
+    NumberSelectorMode,
     SelectSelector,
     SelectSelectorConfig,
     SelectSelectorMode,
+    TextSelector,
+    TextSelectorConfig,
+    TextSelectorType,
 )
 
 from .const import (
+    CONF_DETECT_SILENCE,
     CONF_EXCLUDED_ENTRIES,
     CONF_EXTRA_ENTRIES,
     CONF_FIRE_EVENTS,
     CONF_GRACE_PERIOD,
+    CONF_IGNORED_DEVICE_IDS,
+    CONF_IGNORED_DEVICE_SOURCES,
+    CONF_SILENCE_THRESHOLD_HOURS,
+    DEFAULT_DETECT_SILENCE,
     DEFAULT_FIRE_EVENTS,
     DEFAULT_GRACE_PERIOD,
+    DEFAULT_SILENCE_THRESHOLD_HOURS,
     DOMAIN,
     EXCLUDED_DOMAINS,
     EXCLUDED_SOURCES,
@@ -91,7 +106,6 @@ class SentinelOptionsFlow(OptionsFlow):
         }
 
         # Entries NOT watched by default but potentially useful — shown in "Extra" list
-        # Only real integrations (not helper domains) that were excluded by source
         extra_entries = {
             entry.entry_id: f"{entry.title} ({entry.domain}) [{entry.source}]"
             for entry in self.hass.config_entries.async_entries()
@@ -102,6 +116,7 @@ class SentinelOptionsFlow(OptionsFlow):
 
         schema = vol.Schema(
             {
+                # --- Integrations provider ---
                 vol.Optional(
                     CONF_GRACE_PERIOD,
                     default=current.get(CONF_GRACE_PERIOD, DEFAULT_GRACE_PERIOD),
@@ -130,6 +145,32 @@ class SentinelOptionsFlow(OptionsFlow):
                         mode=SelectSelectorMode.LIST,
                     )
                 ),
+                # --- Devices provider ---
+                vol.Optional(
+                    CONF_DETECT_SILENCE,
+                    default=current.get(CONF_DETECT_SILENCE, DEFAULT_DETECT_SILENCE),
+                ): BooleanSelector(),
+                vol.Optional(
+                    CONF_SILENCE_THRESHOLD_HOURS,
+                    default=current.get(CONF_SILENCE_THRESHOLD_HOURS, DEFAULT_SILENCE_THRESHOLD_HOURS),
+                ): NumberSelector(
+                    NumberSelectorConfig(min=1, max=168, step=1, mode=NumberSelectorMode.BOX)
+                ),
+                vol.Optional(
+                    CONF_IGNORED_DEVICE_SOURCES,
+                    default=current.get(CONF_IGNORED_DEVICE_SOURCES, []),
+                ): SelectSelector(
+                    SelectSelectorConfig(
+                        options=[],
+                        multiple=True,
+                        custom_value=True,
+                        mode=SelectSelectorMode.LIST,
+                    )
+                ),
+                vol.Optional(
+                    CONF_IGNORED_DEVICE_IDS,
+                    default=current.get(CONF_IGNORED_DEVICE_IDS, []),
+                ): DeviceSelector(DeviceSelectorConfig(multiple=True)),
             }
         )
 
