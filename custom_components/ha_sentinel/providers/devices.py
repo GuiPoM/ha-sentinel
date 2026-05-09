@@ -320,6 +320,7 @@ class DevicesProvider(HealthProvider):
                 "source": source,
                 "unavailable_entities": unavailable_entities,
                 "silent_entities": silent_entities,
+                "device_url": f"/config/devices/device/{device_id}",
             },
         )
 
