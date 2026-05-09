@@ -274,6 +274,9 @@ class DevicesProvider(HealthProvider):
             if state is None:
                 unavailable_entities.append(entity.entity_id)
                 continue
+            # Skip restored states — entity not yet updated since last restart
+            if state.attributes.get("restored"):
+                continue
             if state.state == STATE_UNAVAILABLE:
                 unavailable_entities.append(entity.entity_id)
             elif self._detect_silence and state.last_reported:
