@@ -1,6 +1,10 @@
 """Constants for HA Sentinel."""
 from __future__ import annotations
 
+from homeassistant.components.binary_sensor import BinarySensorDeviceClass
+from homeassistant.components.sensor import SensorDeviceClass
+from homeassistant.const import Platform
+
 DOMAIN = "ha_sentinel"
 NAME = "Sentinel"
 VERSION = "0.1.0"
@@ -11,9 +15,17 @@ CONF_EXCLUDED_ENTRIES = "excluded_entries"
 CONF_EXTRA_ENTRIES = "extra_entries"
 CONF_FIRE_EVENTS = "fire_events"
 
+# Configuration keys — devices provider
+CONF_IGNORED_DEVICE_SOURCES = "ignored_device_sources"
+CONF_IGNORED_DEVICE_IDS = "ignored_device_ids"
+CONF_DETECT_SILENCE = "detect_silence"
+CONF_SILENCE_THRESHOLD_HOURS = "silence_threshold_hours"
+
 # Defaults
 DEFAULT_GRACE_PERIOD = 30  # seconds
 DEFAULT_FIRE_EVENTS = True
+DEFAULT_DETECT_SILENCE = True
+DEFAULT_SILENCE_THRESHOLD_HOURS = 24
 
 # Sources that are always excluded — system internals or user-ignored discoveries
 EXCLUDED_SOURCES = {"system", "ignore"}
@@ -49,7 +61,7 @@ EXCLUDED_DOMAINS = {
     "repairs",
     "persistent_notification",
     "homeassistant",
-    "hacs",       # HACS manages itself, not a monitored integration
+    "hacs",        # HACS manages itself, not a monitored integration
     "ha_sentinel", # Never watch ourselves
 }
 
@@ -61,6 +73,7 @@ SIGNAL_SENTINEL_UPDATE = f"{DOMAIN}_update"
 
 # Provider identifiers
 PROVIDER_INTEGRATIONS = "integrations"
+PROVIDER_DEVICES = "devices"
 PROVIDER_APPS = "apps"  # v2 stub
 
 # Config entry states considered healthy
@@ -93,3 +106,45 @@ INACTIVE_STATES = {
 }
 
 # Any unknown state is treated as a warning
+
+# --- Devices provider ---
+
+# Physical domains: entities in these domains are always monitored (regardless of device_class)
+PHYSICAL_DOMAINS: frozenset[str] = frozenset({
+    Platform.LIGHT,
+    Platform.SWITCH,
+    Platform.LOCK,
+    Platform.VACUUM,
+    Platform.CLIMATE,
+    Platform.COVER,
+    Platform.VALVE,
+    Platform.FAN,
+    Platform.HUMIDIFIER,
+    Platform.WATER_HEATER,
+    Platform.LAWN_MOWER,
+})
+
+# Vital device classes: sensor/binary_sensor entities with these classes are monitored
+VITAL_DEVICE_CLASSES: frozenset[str] = frozenset({
+    # Environment
+    SensorDeviceClass.TEMPERATURE,
+    SensorDeviceClass.HUMIDITY,
+    SensorDeviceClass.MOISTURE,
+    SensorDeviceClass.CO,
+    SensorDeviceClass.CO2,
+    # Safety / Security
+    BinarySensorDeviceClass.MOTION,
+    BinarySensorDeviceClass.OCCUPANCY,
+    BinarySensorDeviceClass.SMOKE,
+    BinarySensorDeviceClass.GAS,
+    BinarySensorDeviceClass.CO,
+    BinarySensorDeviceClass.DOOR,
+    BinarySensorDeviceClass.GARAGE_DOOR,
+    BinarySensorDeviceClass.WINDOW,
+    BinarySensorDeviceClass.OPENING,
+    BinarySensorDeviceClass.MOISTURE,
+    BinarySensorDeviceClass.VIBRATION,
+    BinarySensorDeviceClass.TAMPER,
+    BinarySensorDeviceClass.SAFETY,
+    BinarySensorDeviceClass.CONNECTIVITY,
+})
