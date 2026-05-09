@@ -287,8 +287,8 @@ class DevicesProvider(HealthProvider):
 
         device_name = device.name_by_user or device.name or device_id
         source = _get_device_source(self.hass, device_id)
-        # Include source in display name to disambiguate devices with identical names
-        display_name = f"{device_name} ({source.lower()})"
+        # Keep display_name clean — source is available via extra.source in events/attributes
+        display_name = device_name
 
         # If force_healthy, skip all state checks and return a healthy item
         if force_healthy:
