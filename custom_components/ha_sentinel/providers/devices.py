@@ -287,13 +287,15 @@ class DevicesProvider(HealthProvider):
 
         device_name = device.name_by_user or device.name or device_id
         source = _get_device_source(self.hass, device_id)
+        # Include source in display name to disambiguate devices with identical names
+        display_name = f"{device_name} ({source.lower()})"
 
         # If force_healthy, skip all state checks and return a healthy item
         if force_healthy:
             existing = self._items.get(device_id)
             return HealthItem(
                 id=device_id,
-                name=device_name,
+                name=display_name,
                 provider=PROVIDER_DEVICES,
                 healthy=True,
                 state="ok",
@@ -352,7 +354,7 @@ class DevicesProvider(HealthProvider):
 
         return HealthItem(
             id=device_id,
-            name=device_name,
+            name=display_name,
             provider=PROVIDER_DEVICES,
             healthy=is_healthy,
             state=state_str,
