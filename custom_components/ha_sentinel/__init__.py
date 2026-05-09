@@ -65,12 +65,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         coordinator.async_recheck()
 
     async def handle_purge(call: ServiceCall) -> None:
-        """Remove ALL Sentinel entities from the registry, then reload."""
+        """Remove ALL Sentinel entities from the registry.
+
+        Does NOT reload — restart HA after calling this service to
+        recreate all entities with clean entity_ids.
+        """
         registry = er.async_get(hass)
+        count = 0
         for entity_entry in er.async_entries_for_config_entry(registry, entry.entry_id):
             _LOGGER.info("Sentinel purge: removing %s", entity_entry.entity_id)
             registry.async_remove(entity_entry.entity_id)
-        await hass.config_entries.async_reload(entry.entry_id)
+            count += 1
+        _LOGGER.info("Sentinel purge: removed %d entities — restart HA to recreate", count)
 
     hass.services.async_register(
         DOMAIN, SERVICE_RELOAD, handle_reload, schema=SERVICE_RELOAD_SCHEMA
