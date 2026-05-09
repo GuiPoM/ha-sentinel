@@ -109,14 +109,16 @@ class SentinelCoordinator:
         fire_events: bool = self._config.get(CONF_FIRE_EVENTS, DEFAULT_FIRE_EVENTS)
 
         if fire_events:
+            source = item.extra.get("source", "")
+            domain = item.extra.get("domain", "") or source.lower()
             self.hass.bus.async_fire(
                 EVENT_ITEM_CHANGED,
                 {
                     "item_id": item.id,
                     "provider": item.provider,
                     "name": item.name,
-                    "domain": item.extra.get("domain", ""),
-                    "source": item.extra.get("source", ""),
+                    "domain": domain,
+                    "source": source,
                     "healthy": item.healthy,
                     "state": item.state,
                     "severity": item.severity,
