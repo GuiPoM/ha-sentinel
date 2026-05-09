@@ -16,6 +16,7 @@ from homeassistant.const import STATE_UNAVAILABLE
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.event import (
+    async_call_later,
     async_track_state_change_event,
     async_track_time_interval,
 )
@@ -170,6 +171,16 @@ class DevicesProvider(HealthProvider):
                 self._async_scan_silence,
                 _SILENCE_SCAN_INTERVAL,
             )
+
+        # Re-evaluate all devices after startup grace period to catch
+        # transient unavailable states that resolved during HA boot
+        @callback
+        def _async_startup_recheck(_now=None) -> None:
+            _LOGGER.debug("DevicesProvider: startup recheck triggered")
+            for device_id in list(self._items.keys()):
+                self._async_evaluate_device(device_id)
+
+        async_call_later(self.hass, 60, _async_startup_recheck)
 
     async def async_unload(self) -> None:
         """Unload provider and cancel subscriptions."""
