@@ -5,7 +5,7 @@ from homeassistant.components.binary_sensor import BinarySensorDeviceClass
 from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.const import Platform
 
-DOMAIN = "ha_sentinel"
+DOMAIN = "sentinel"
 NAME = "Sentinel"
 VERSION = "0.1.0"
 
@@ -62,7 +62,7 @@ EXCLUDED_DOMAINS = {
     "persistent_notification",
     "homeassistant",
     "hacs",        # HACS manages itself, not a monitored integration
-    "ha_sentinel", # Never watch ourselves
+    "sentinel", # Never watch ourselves
 }
 
 # Event fired on state change

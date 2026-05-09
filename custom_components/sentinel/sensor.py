@@ -52,7 +52,7 @@ class SentinelProblemCountSensor(SensorEntity):
     def device_info(self) -> DeviceInfo:
         """Group under the Sentinel device."""
         return DeviceInfo(
-            identifiers={(DOMAIN, "ha_sentinel_main")},
+            identifiers={(DOMAIN, "sentinel_main")},
             name=NAME,
             manufacturer="GuiPoM",
             model="Sentinel",

@@ -132,7 +132,7 @@ class IntegrationsProvider(HealthProvider):
         # Skip system internals and user-ignored discoveries
         if entry.source in EXCLUDED_SOURCES:
             return False
-        # Skip HA helper/utility domains (includes ha_sentinel and hacs)
+        # Skip HA helper/utility domains (includes sentinel and hacs)
         if entry.domain in EXCLUDED_DOMAINS:
             return False
         return True

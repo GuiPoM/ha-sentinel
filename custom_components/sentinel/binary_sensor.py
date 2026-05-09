@@ -63,7 +63,7 @@ class SentinelBinarySensor(BinarySensorEntity):
     """
 
     _attr_device_class = BinarySensorDeviceClass.PROBLEM
-    _attr_has_entity_name = False
+    _attr_has_entity_name = True
     _attr_should_poll = False
 
     def __init__(self, coordinator: SentinelCoordinator, item: HealthItem) -> None:
@@ -72,13 +72,13 @@ class SentinelBinarySensor(BinarySensorEntity):
         self._item = item
         self._attr_unique_id = f"{DOMAIN}_{item.id}"
         domain = item.extra.get("domain", "") or item.extra.get("source", "").lower()
-        self._attr_name = f"HA Sentinel {item.name} ({domain})" if domain else f"HA Sentinel {item.name}"
+        self._attr_name = f"{item.name} ({domain})" if domain else item.name
 
     @property
     def device_info(self) -> DeviceInfo:
         """Group all entities under a single Sentinel device."""
         return DeviceInfo(
-            identifiers={(DOMAIN, "ha_sentinel_main")},
+            identifiers={(DOMAIN, "sentinel_main")},
             name=NAME,
             manufacturer="GuiPoM",
             model="Sentinel",

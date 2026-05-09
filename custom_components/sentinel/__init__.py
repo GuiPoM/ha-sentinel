@@ -68,25 +68,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         """Remove ALL Sentinel entities from the registry — no reload."""
         registry = er.async_get(hass)
 
-        # 1. Collect all entity_ids to remove BEFORE unloading
+        # Collect all entities created by this integration
         to_remove = [
             e.entity_id
             for e in list(registry.entities.values())
-            if e.config_entry_id == entry.entry_id
-            or e.entity_id.startswith("binary_sensor.sentinel_")
-            or e.entity_id.startswith("binary_sensor.ha_sentinel_")
+            if e.platform == DOMAIN
         ]
 
-        # 2. Unload platforms so entities are detached from HA state machine
+        # Unload platforms so entities are detached from HA state machine
         await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
-        # 3. Remove all collected entities from registry
+        # Remove from registry
         for eid in to_remove:
             if eid in registry.entities:
                 registry.async_remove(eid)
                 _LOGGER.info("Sentinel purge: removed %s", eid)
 
-        _LOGGER.info("Sentinel purge done (%d entities removed) — restart HA", len(to_remove))
+        _LOGGER.info("Sentinel purge: %d entities removed — restart HA", len(to_remove))
 
     hass.services.async_register(
         DOMAIN, SERVICE_RELOAD, handle_reload, schema=SERVICE_RELOAD_SCHEMA
