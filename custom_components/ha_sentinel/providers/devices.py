@@ -12,11 +12,10 @@ import logging
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Callable
 
-from homeassistant.const import STATE_UNAVAILABLE
+from homeassistant.const import EVENT_HOMEASSISTANT_STARTED, STATE_UNAVAILABLE
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.event import (
-    async_call_later,
     async_track_state_change_event,
     async_track_time_interval,
 )
@@ -172,15 +171,21 @@ class DevicesProvider(HealthProvider):
                 _SILENCE_SCAN_INTERVAL,
             )
 
-        # Re-evaluate all devices after startup grace period to catch
-        # transient unavailable states that resolved during HA boot
+        # Re-evaluate all devices once HA is fully started to clear
+        # transient unavailable states captured during boot snapshot
         @callback
-        def _async_startup_recheck(_now=None) -> None:
-            _LOGGER.debug("DevicesProvider: startup recheck triggered")
+        def _async_startup_recheck(_event=None) -> None:
+            _LOGGER.debug("DevicesProvider: HA started — running startup recheck")
             for device_id in list(self._items.keys()):
                 self._async_evaluate_device(device_id)
 
-        async_call_later(self.hass, 60, _async_startup_recheck)
+        if self.hass.is_running:
+            # HA already running (e.g. integration reloaded) — recheck immediately
+            _async_startup_recheck()
+        else:
+            self.hass.bus.async_listen_once(
+                EVENT_HOMEASSISTANT_STARTED, _async_startup_recheck
+            )
 
     async def async_unload(self) -> None:
         """Unload provider and cancel subscriptions."""
