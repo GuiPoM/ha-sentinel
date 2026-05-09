@@ -142,12 +142,15 @@ class DevicesProvider(HealthProvider):
             self._entity_to_device[entity.entity_id] = entity.device_id
             device_entities.setdefault(entity.device_id, []).append(entity)
 
-        # Build initial HealthItem per device
+        # Build initial HealthItem per device — always healthy at startup.
+        # We never trust the snapshot state for problems: transient unavailable
+        # states during boot would cause false positives. Real problems will be
+        # detected via state change events or the homeassistant_started recheck.
         for device_id, entities in device_entities.items():
-            item = self._build_device_item(device_id, entities)
+            item = self._build_device_item(device_id, entities, force_healthy=True)
             if item is not None:
                 self._items[device_id] = item
-                self._previous_healthy[device_id] = item.healthy
+                self._previous_healthy[device_id] = True
 
         _LOGGER.debug(
             "DevicesProvider set up: monitoring %d devices (%d entities mapped)",
@@ -270,8 +273,13 @@ class DevicesProvider(HealthProvider):
         self,
         device_id: str,
         entities: list,
+        force_healthy: bool = False,
     ) -> HealthItem | None:
-        """Build a HealthItem for a device from its entities' current states."""
+        """Build a HealthItem for a device from its entities' current states.
+
+        If force_healthy is True, always return a healthy item regardless of
+        current entity states (used at startup to avoid false positives).
+        """
         dev_reg = dr.async_get(self.hass)
         device = dev_reg.async_get(device_id)
         if device is None:
@@ -279,6 +287,29 @@ class DevicesProvider(HealthProvider):
 
         device_name = device.name_by_user or device.name or device_id
         source = _get_device_source(self.hass, device_id)
+
+        # If force_healthy, skip all state checks and return a healthy item
+        if force_healthy:
+            existing = self._items.get(device_id)
+            return HealthItem(
+                id=device_id,
+                name=device_name,
+                provider=PROVIDER_DEVICES,
+                healthy=True,
+                state="ok",
+                severity="ok",
+                reason=None,
+                since=existing.since if existing else datetime.now(),
+                failure_count=existing.failure_count if existing else 0,
+                can_reload=False,
+                extra={
+                    "device_id": device_id,
+                    "source": source,
+                    "unavailable_entities": [],
+                    "silent_entities": [],
+                    "device_url": f"/config/devices/device/{device_id}",
+                },
+            )
 
         # Determine health by checking all entity states
         unavailable_entities: list[str] = []
