@@ -65,27 +65,28 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         coordinator.async_recheck()
 
     async def handle_purge(call: ServiceCall) -> None:
-        """Remove ALL Sentinel entities from the registry — no reload.
+        """Remove ALL Sentinel entities from the registry — no reload."""
+        registry = er.async_get(hass)
 
-        After calling this, restart HA to recreate entities with clean ids.
-        """
-        # Unload platforms so entities are detached from memory
+        # 1. Collect all entity_ids to remove BEFORE unloading
+        to_remove = [
+            e.entity_id
+            for e in list(registry.entities.values())
+            if e.config_entry_id == entry.entry_id
+            or e.entity_id.startswith("binary_sensor.sentinel_")
+            or e.entity_id.startswith("binary_sensor.ha_sentinel_")
+        ]
+
+        # 2. Unload platforms so entities are detached from HA state machine
         await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
-        # Remove every entity linked to this config entry
-        registry = er.async_get(hass)
-        entities = list(er.async_entries_for_config_entry(registry, entry.entry_id))
-        for entity_entry in entities:
-            registry.async_remove(entity_entry.entity_id)
-            _LOGGER.info("Sentinel purge: removed %s", entity_entry.entity_id)
+        # 3. Remove all collected entities from registry
+        for eid in to_remove:
+            if eid in registry.entities:
+                registry.async_remove(eid)
+                _LOGGER.info("Sentinel purge: removed %s", eid)
 
-        # Also nuke any stale sentinel_* orphans not linked to the entry
-        for entity_entry in list(registry.entities.values()):
-            if entity_entry.entity_id.startswith("binary_sensor.sentinel_"):
-                registry.async_remove(entity_entry.entity_id)
-                _LOGGER.info("Sentinel purge: removed orphan %s", entity_entry.entity_id)
-
-        _LOGGER.info("Sentinel purge done — restart HA to recreate entities")
+        _LOGGER.info("Sentinel purge done (%d entities removed) — restart HA", len(to_remove))
 
     hass.services.async_register(
         DOMAIN, SERVICE_RELOAD, handle_reload, schema=SERVICE_RELOAD_SCHEMA
