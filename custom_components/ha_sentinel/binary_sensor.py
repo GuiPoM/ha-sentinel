@@ -72,7 +72,7 @@ class SentinelBinarySensor(BinarySensorEntity):
         self._item = item
         self._attr_unique_id = f"{DOMAIN}_{item.id}"
         domain = item.extra.get("domain", "") or item.extra.get("source", "").lower()
-        self._attr_name = f"Sentinel {item.name} ({domain})" if domain else f"Sentinel {item.name}"
+        self._attr_name = f"HA Sentinel {item.name} ({domain})" if domain else f"HA Sentinel {item.name}"
 
     @property
     def device_info(self) -> DeviceInfo:
