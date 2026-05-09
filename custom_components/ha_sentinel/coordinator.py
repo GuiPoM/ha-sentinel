@@ -111,6 +111,7 @@ class SentinelCoordinator:
         if fire_events:
             source = item.extra.get("source", "")
             domain = item.extra.get("domain", "") or source.lower()
+            item_type = "device" if item.provider == PROVIDER_DEVICES else "integration"
             self.hass.bus.async_fire(
                 EVENT_ITEM_CHANGED,
                 {
@@ -119,6 +120,7 @@ class SentinelCoordinator:
                     "name": item.name,
                     "domain": domain,
                     "source": source,
+                    "item_type": item_type,
                     "healthy": item.healthy,
                     "state": item.state,
                     "severity": item.severity,
