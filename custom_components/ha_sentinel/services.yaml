@@ -26,3 +26,8 @@ check:
   name: Check
   description: Re-fire events for all currently unhealthy integrations. Useful to trigger automations on demand.
   fields: {}
+
+purge:
+  name: Purge
+  description: Remove ALL Sentinel entities from the registry and reload. Use this to clean up stale or renamed entities.
+  fields: {}

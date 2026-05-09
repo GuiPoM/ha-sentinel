@@ -30,6 +30,9 @@ SERVICE_RESET_FAILURE_COUNT_SCHEMA = vol.Schema(
 SERVICE_CHECK = "check"
 SERVICE_CHECK_SCHEMA = vol.Schema({})
 
+SERVICE_PURGE = "purge"
+SERVICE_PURGE_SCHEMA = vol.Schema({})
+
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up HA Sentinel from a config entry."""
@@ -61,6 +64,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         """Re-fire events for all currently unhealthy items."""
         coordinator.async_recheck()
 
+    async def handle_purge(call: ServiceCall) -> None:
+        """Remove ALL Sentinel entities from the registry, then reload."""
+        registry = er.async_get(hass)
+        for entity_entry in er.async_entries_for_config_entry(registry, entry.entry_id):
+            _LOGGER.info("Sentinel purge: removing %s", entity_entry.entity_id)
+            registry.async_remove(entity_entry.entity_id)
+        await hass.config_entries.async_reload(entry.entry_id)
+
     hass.services.async_register(
         DOMAIN, SERVICE_RELOAD, handle_reload, schema=SERVICE_RELOAD_SCHEMA
     )
@@ -72,6 +83,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
     hass.services.async_register(
         DOMAIN, SERVICE_CHECK, handle_check, schema=SERVICE_CHECK_SCHEMA
+    )
+    hass.services.async_register(
+        DOMAIN, SERVICE_PURGE, handle_purge, schema=SERVICE_PURGE_SCHEMA
     )
 
     # Re-apply config when options are updated
@@ -122,5 +136,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             hass.services.async_remove(DOMAIN, SERVICE_RELOAD)
             hass.services.async_remove(DOMAIN, SERVICE_RESET_FAILURE_COUNT)
             hass.services.async_remove(DOMAIN, SERVICE_CHECK)
+            hass.services.async_remove(DOMAIN, SERVICE_PURGE)
 
     return unload_ok
