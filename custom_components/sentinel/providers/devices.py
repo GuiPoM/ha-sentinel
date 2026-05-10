@@ -19,10 +19,12 @@ from homeassistant.helpers.event import (
     async_track_state_change_event,
     async_track_time_interval,
 )
+from homeassistant.util import dt as dt_util
 
 from ..const import (
     DEFAULT_DETECT_SILENCE,
     DEFAULT_SILENCE_THRESHOLD_HOURS,
+    PERIODIC_DEVICE_CLASSES,
     PHYSICAL_DOMAINS,
     PROVIDER_DEVICES,
     VITAL_DEVICE_CLASSES,
@@ -316,7 +318,7 @@ class DevicesProvider(HealthProvider):
         # Determine health by checking all entity states
         unavailable_entities: list[str] = []
         silent_entities: list[str] = []
-        now = datetime.now()
+        now = dt_util.utcnow()
 
         for entity in entities:
             state = self.hass.states.get(entity.entity_id)
@@ -328,10 +330,15 @@ class DevicesProvider(HealthProvider):
                 continue
             if state.state == STATE_UNAVAILABLE:
                 unavailable_entities.append(entity.entity_id)
-            elif self._detect_silence and state.last_reported:
-                age = now - state.last_reported.replace(tzinfo=None)
-                if age > self._silence_threshold:
-                    silent_entities.append(entity.entity_id)
+            elif self._detect_silence and state.last_updated:
+                # Silence only applies to periodic sensors (temperature, humidity, co2...)
+                # Event-based sensors (motion, door, smoke...) and physical domains
+                # (light, switch...) only report on state change — never mark them silent.
+                device_class = entity.original_device_class or entity.device_class
+                if device_class in PERIODIC_DEVICE_CLASSES:
+                    age = now - state.last_updated
+                    if age > self._silence_threshold:
+                        silent_entities.append(entity.entity_id)
 
         is_unavailable = len(unavailable_entities) > 0
         is_silent = not is_unavailable and len(silent_entities) > 0
@@ -344,7 +351,7 @@ class DevicesProvider(HealthProvider):
         elif is_silent:
             state_str = "silent"
             severity = "warning"
-            reason = f"Aucune mise à jour depuis >{self._silence_threshold.seconds // 3600}h"
+            reason = f"Aucune mise à jour depuis >{int(self._silence_threshold.total_seconds() // 3600)}h"
         else:
             state_str = "ok"
             severity = "ok"

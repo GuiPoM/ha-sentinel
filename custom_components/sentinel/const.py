@@ -148,3 +148,14 @@ VITAL_DEVICE_CLASSES: frozenset[str] = frozenset({
     BinarySensorDeviceClass.SAFETY,
     BinarySensorDeviceClass.CONNECTIVITY,
 })
+
+# Device classes that report periodically — silence detection applies only to these.
+# Event-based sensors (motion, door, smoke...) and physical domains (light, switch...)
+# are excluded from silence detection as they only report on state change.
+PERIODIC_DEVICE_CLASSES: frozenset[str] = frozenset({
+    SensorDeviceClass.TEMPERATURE,
+    SensorDeviceClass.HUMIDITY,
+    SensorDeviceClass.MOISTURE,
+    SensorDeviceClass.CO,
+    SensorDeviceClass.CO2,
+})
