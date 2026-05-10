@@ -1,14 +1,14 @@
 {
   "domain": "sentinel",
   "name": "Sentinel",
-  "version": "0.5.0",
-  "documentation": "https://github.com/GuiPoM/ha-sentinel",
-  "issue_tracker": "https://github.com/GuiPoM/ha-sentinel/issues",
   "codeowners": ["@GuiPoM"],
-  "requirements": [],
+  "config_flow": true,
   "dependencies": [],
+  "documentation": "https://github.com/GuiPoM/ha-sentinel",
   "integration_type": "service",
   "iot_class": "local_push",
-  "config_flow": true,
-  "single_config_entry": true
+  "issue_tracker": "https://github.com/GuiPoM/ha-sentinel/issues",
+  "requirements": [],
+  "single_config_entry": true,
+  "version": "0.5.0"
 }
