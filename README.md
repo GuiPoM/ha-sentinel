@@ -71,10 +71,12 @@ After adding the integration, configure via **Settings → Devices & Services �
 
 | Option | Default | Description |
 |---|---|---|
-| Detect silence | Yes | Flag devices that haven't reported in a while |
-| Silence threshold | 24h | How long without an update before a device is considered silent |
+| Detect silence | Yes | Flag periodic sensors that haven't reported in a while |
+| Silence threshold | 24h | How long without an update before a sensor is considered silent |
 | Ignored device sources | None | Integration sources to ignore (e.g. `mobile_app`, `cast`) |
 | Ignored devices | None | Specific devices to exclude from monitoring |
+
+> **Note:** Silence detection only applies to periodic sensors (`temperature`, `humidity`, `moisture`, `co`, `co2`). Lights, switches, locks and event-based sensors (`motion`, `door`, `smoke`…) are never flagged as silent — they only report on state change, which is normal behavior.
 
 ### What gets monitored by default
 
@@ -224,7 +226,7 @@ type: custom:ha-sentinel-devices-card
 | `migration_error` | `error` | Migration failed |
 | `failed_unload` | `error` | Could not unload cleanly |
 | `unavailable` | `error` | Device entity unavailable |
-| `silent` | `warning` | No update received in >threshold |
+| `silent` | `warning` | Periodic sensor (temperature, humidity, CO2…) has not reported in >threshold — only applies to sensors that report regularly, never to lights, switches or event-based sensors |
 
 ---
 
