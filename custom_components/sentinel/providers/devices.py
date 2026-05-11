@@ -10,15 +10,16 @@ is no longer reachable by its hub (Hue, Z-Wave JS, Zigbee2MQTT, Matter, etc.).
 """
 from __future__ import annotations
 
-import logging
+from collections.abc import Callable
 from dataclasses import replace
-from datetime import datetime
-from typing import TYPE_CHECKING, Callable
+import logging
+from typing import TYPE_CHECKING
 
 from homeassistant.const import EVENT_HOMEASSISTANT_STARTED, STATE_UNAVAILABLE
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.util import dt as dt_util
 
 from ..const import (
     PHYSICAL_DOMAINS,
@@ -63,9 +64,7 @@ def _is_eligible(entity) -> bool:
     device_class = entity.original_device_class or entity.device_class
     if domain in PHYSICAL_DOMAINS:
         return True
-    if domain in ("sensor", "binary_sensor") and device_class in VITAL_DEVICE_CLASSES:
-        return True
-    return False
+    return domain in ("sensor", "binary_sensor") and device_class in VITAL_DEVICE_CLASSES
 
 
 class DevicesProvider(HealthProvider):
@@ -110,9 +109,7 @@ class DevicesProvider(HealthProvider):
         if device_id in self._ignored_device_ids:
             return False
         source = _get_device_source(self.hass, device_id)
-        if source in self._ignored_sources:
-            return False
-        return True
+        return source not in self._ignored_sources
 
     def _integration_has_problem(self, device_id: str) -> bool:
         """Return True if the integration owning this device already has a problem."""
@@ -256,7 +253,7 @@ class DevicesProvider(HealthProvider):
 
         device_name = device.name_by_user or device.name or device_id
         source = _get_device_source(self.hass, device_id)
-        now = datetime.now()
+        now = dt_util.utcnow()
 
         # If force_healthy, skip all state checks and return a healthy item
         if force_healthy:

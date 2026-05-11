@@ -5,10 +5,11 @@ to entities, fires bus events, and exposes the reload action.
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 import logging
-from typing import Callable
 
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 
 from .const import (
@@ -79,7 +80,6 @@ class SentinelCoordinator:
     @callback
     def _device_integration_has_problem(self, device_id: str) -> bool:
         """Return True if the integration owning this device has a known problem."""
-        from homeassistant.helpers import device_registry as dr
         dev_reg = dr.async_get(self.hass)
         device = dev_reg.async_get(device_id)
         if device is None:

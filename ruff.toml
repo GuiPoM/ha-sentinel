@@ -1,0 +1,63 @@
+# Ruff configuration for ha-sentinel custom component
+# Based on HA core conventions, adapted for a custom component context.
+
+required-version = ">=0.9.0"
+line-length = 120
+
+[lint]
+select = [
+  "E",      # pycodestyle errors
+  "W",      # pycodestyle warnings
+  "F",      # pyflakes
+  "I",      # isort
+  "UP",     # pyupgrade
+  "B",      # flake8-bugbear
+  "C",      # complexity
+  "SIM",    # flake8-simplify
+  "RUF",    # ruff-specific rules
+  "ASYNC",  # flake8-async
+  "DTZ",    # flake8-datetimez (datetime.now() without tz)
+  "TC",     # flake8-type-checking
+  "TID",    # flake8-tidy-imports
+  "PL",     # pylint
+  "PGH",    # pygrep-hooks
+  "G",      # flake8-logging-format
+  "N",      # pep8-naming
+  "FLY",    # flynt
+]
+
+ignore = [
+  "E501",     # line too long — handled by formatter / not enforced
+  "D",        # docstrings — too strict for a custom component
+  "PLR0912",  # too many branches
+  "PLR0913",  # too many arguments
+  "PLR0915",  # too many statements
+  "PLR2004",  # magic value in comparison
+  "PLW2901",  # outer variable overwritten by inner target
+  "SIM102",   # nested if — style preference
+  "SIM108",   # ternary operator — style preference
+  "TC001",    # move application import into TYPE_CHECKING block
+  "TC002",    # move third-party import into TYPE_CHECKING block
+  "TC003",    # move stdlib import into TYPE_CHECKING block
+  "TRY003",   # long messages outside exception class
+  "G004",     # logging statement with f-string
+  "N818",     # exception name should end with Error
+  "TID252",   # relative imports from parent modules — standard in custom components
+  # May conflict with formatter
+  "COM812",
+  "COM819",
+  "ISC001",
+]
+
+[lint.isort]
+force-sort-within-sections = true
+known-first-party = ["homeassistant"]
+combine-as-imports = true
+
+[lint.flake8-import-conventions.extend-aliases]
+"homeassistant.helpers.entity_registry" = "er"
+"homeassistant.helpers.device_registry" = "dr"
+"homeassistant.util.dt" = "dt_util"
+
+[lint.per-file-ignores]
+"custom_components/sentinel/providers/apps.py" = ["ALL"]  # stub file, not yet implemented

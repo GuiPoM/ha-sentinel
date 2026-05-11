@@ -6,9 +6,8 @@ reports their health state in real time using the dispatcher signal.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 import logging
-from datetime import datetime
-from typing import Callable
 
 from homeassistant.config_entries import (
     SIGNAL_CONFIG_ENTRY_CHANGED,
@@ -18,6 +17,7 @@ from homeassistant.config_entries import (
 )
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
+from homeassistant.util import dt as dt_util
 
 from ..const import (
     DEFAULT_GRACE_PERIOD,
@@ -26,7 +26,6 @@ from ..const import (
     EXCLUDED_SOURCES,
     HEALTHY_STATES,
     INACTIVE_STATES,
-    PROBLEM_STATES,
     PROVIDER_INTEGRATIONS,
     TRANSIENT_STATES,
     WARNING_STATES,
@@ -133,9 +132,7 @@ class IntegrationsProvider(HealthProvider):
         if entry.source in EXCLUDED_SOURCES:
             return False
         # Skip HA helper/utility domains (includes sentinel and hacs)
-        if entry.domain in EXCLUDED_DOMAINS:
-            return False
-        return True
+        return entry.domain not in EXCLUDED_DOMAINS
 
     async def async_setup(self, on_change_callback: Callable[[HealthItem], None]) -> None:
         """Set up the provider: snapshot all current entries and subscribe to changes."""
@@ -175,7 +172,7 @@ class IntegrationsProvider(HealthProvider):
         try:
             await self.hass.config_entries.async_reload(item_id)
             return True
-        except Exception as err:  # noqa: BLE001
+        except Exception as err:
             _LOGGER.error("Failed to reload entry %s: %s", item_id, err)
             return False
 
@@ -294,7 +291,7 @@ class IntegrationsProvider(HealthProvider):
             state=state_str,
             severity=_get_severity(state_str),
             reason=getattr(entry, "reason", None),
-            since=existing.since if existing and existing.healthy == healthy else datetime.now(),
+            since=existing.since if existing and existing.healthy == healthy else dt_util.utcnow(),
             failure_count=existing.failure_count if existing else failure_count,
             can_reload=entry.state.recoverable,
             extra={

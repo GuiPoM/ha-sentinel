@@ -1,10 +1,8 @@
 """Apps (add-ons) provider stub for HA Sentinel — v2."""
 from __future__ import annotations
 
+from collections.abc import Callable
 import logging
-from typing import Callable
-
-from homeassistant.core import HomeAssistant
 
 from ..const import PROVIDER_APPS
 from . import HealthItem, HealthProvider
