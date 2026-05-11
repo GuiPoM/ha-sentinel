@@ -305,7 +305,7 @@ class DevicesProvider(HealthProvider):
             healthy=is_healthy,
             state="unavailable" if not is_healthy else "ok",
             severity="error" if not is_healthy else "ok",
-            reason=f"{len(unavailable_entities)} unavailable entity(ies)" if not is_healthy else None,
+            reason=None,
             since=(
                 existing.since
                 if existing and existing.healthy == is_healthy

@@ -95,6 +95,7 @@ class SentinelBinarySensor(BinarySensorEntity):
         attrs = {
             "provider": self._item.provider,
             "state": self._item.state,
+            "severity": self._item.severity,
             "since": self._item.since.isoformat(),
             "failure_count": self._item.failure_count,
             "can_reload": self._item.can_reload,
