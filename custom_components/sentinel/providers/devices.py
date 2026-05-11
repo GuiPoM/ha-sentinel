@@ -320,12 +320,3 @@ class DevicesProvider(HealthProvider):
                 "device_url": f"/config/devices/device/{device_id}",
             },
         )
-
-    def update_config(
-        self,
-        ignored_device_sources: set[str],
-        ignored_device_ids: set[str],
-    ) -> None:
-        """Update provider configuration."""
-        self._ignored_sources = {s.upper() for s in ignored_device_sources}
-        self._ignored_device_ids = ignored_device_ids
