@@ -7,7 +7,6 @@ from homeassistant.const import Platform
 
 DOMAIN = "sentinel"
 NAME = "Sentinel"
-VERSION = "0.1.0"
 
 # Configuration keys
 CONF_GRACE_PERIOD = "grace_period"

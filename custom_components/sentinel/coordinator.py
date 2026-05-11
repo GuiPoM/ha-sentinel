@@ -5,7 +5,6 @@ to entities, fires bus events, and exposes the reload action.
 """
 from __future__ import annotations
 
-from collections.abc import Callable
 import logging
 
 from homeassistant.core import HomeAssistant, callback
@@ -41,7 +40,6 @@ class SentinelCoordinator:
         self.hass = hass
         self._config = config
         self._providers: dict[str, HealthProvider] = {}
-        self._listeners: list[Callable] = []
 
     async def async_setup(self) -> None:
         """Set up all providers."""
@@ -137,13 +135,6 @@ class SentinelCoordinator:
         for provider in self._providers.values():
             items.extend(provider.get_items().values())
         return items
-
-    def get_items_by_provider(self, provider_id: str) -> list[HealthItem]:
-        """Return all items for a specific provider."""
-        provider = self._providers.get(provider_id)
-        if provider is None:
-            return []
-        return list(provider.get_items().values())
 
     def get_problem_count(self) -> int:
         """Return the total number of unhealthy items."""

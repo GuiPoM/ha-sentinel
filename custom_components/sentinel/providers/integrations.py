@@ -183,9 +183,6 @@ class IntegrationsProvider(HealthProvider):
         """Handle a config entry change signal."""
         entry_id = entry.entry_id
 
-        if entry_id in self._excluded:
-            return
-
         if change == ConfigEntryChange.REMOVED:
             # Clean up removed entry
             self._items.pop(entry_id, None)
@@ -201,7 +198,7 @@ class IntegrationsProvider(HealthProvider):
         state_str = _entry_state_str(entry)
 
         # Ignore purely transient states (in-progress transitions)
-        if state_str in TRANSIENT_STATES and state_str != "not_loaded":
+        if state_str in TRANSIENT_STATES:
             return
 
         # If newly added entry, create item immediately
@@ -292,7 +289,7 @@ class IntegrationsProvider(HealthProvider):
             severity=_get_severity(state_str),
             reason=getattr(entry, "reason", None),
             since=existing.since if existing and existing.healthy == healthy else dt_util.utcnow(),
-            failure_count=existing.failure_count if existing else failure_count,
+            failure_count=failure_count,
             can_reload=entry.state.recoverable,
             extra={
                 "domain": entry.domain,
@@ -301,11 +298,3 @@ class IntegrationsProvider(HealthProvider):
                 "disabled_by": str(entry.disabled_by) if entry.disabled_by else None,
             },
         )
-
-    def update_excluded(self, excluded_entry_ids: set[str]) -> None:
-        """Update the set of excluded entry IDs."""
-        self._excluded = excluded_entry_ids
-
-    def update_extra(self, extra_entry_ids: set[str]) -> None:
-        """Update the set of extra (opt-in) entry IDs."""
-        self._extra = extra_entry_ids

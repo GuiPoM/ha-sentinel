@@ -13,12 +13,13 @@ from homeassistant.components.binary_sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
-from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN, NAME, SIGNAL_SENTINEL_UPDATE
+from .const import DOMAIN, SIGNAL_SENTINEL_UPDATE
 from .coordinator import SentinelCoordinator
+from .entity_base import sentinel_device_info
 from .providers import HealthItem
 
 _LOGGER = logging.getLogger(__name__)
@@ -77,12 +78,7 @@ class SentinelBinarySensor(BinarySensorEntity):
     @property
     def device_info(self) -> DeviceInfo:
         """Group all entities under a single Sentinel device."""
-        return DeviceInfo(
-            identifiers={(DOMAIN, "sentinel_main")},
-            name=NAME,
-            manufacturer="GuiPoM",
-            model="Sentinel",
-        )
+        return sentinel_device_info()
 
     @property
     def is_on(self) -> bool:

@@ -6,7 +6,7 @@ import logging
 import voluptuous as vol
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.helpers import config_validation as cv, entity_registry as er
 
 from .const import DOMAIN
@@ -46,7 +46,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Clean up orphaned entities BEFORE setting up platforms
     # so they are not re-added by the platform setup
-    _async_cleanup_orphaned_entities(hass, entry, coordinator)
+    _cleanup_orphaned_entities(hass, entry, coordinator)
 
     # Forward setup to platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -109,7 +109,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return True
 
 
-def _async_cleanup_orphaned_entities(
+@callback
+def _cleanup_orphaned_entities(
     hass: HomeAssistant,
     entry: ConfigEntry,
     coordinator: SentinelCoordinator,

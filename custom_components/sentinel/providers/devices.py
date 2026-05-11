@@ -35,18 +35,20 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def _get_device_source(hass: HomeAssistant, device_id: str) -> str:
-    """Return the integration source string for a device (uppercase)."""
+    """Return the integration source string for a device (uppercase).
+
+    Uses the first element of the first identifier tuple, sorted for
+    deterministic output when a device has multiple integrations.
+    """
     dev_reg = dr.async_get(hass)
     device = dev_reg.async_get(device_id)
     if device is None:
         return "DEVICE"
-    identifiers = list(device.identifiers)
+    identifiers = sorted(device.identifiers)
     if not identifiers:
         return "DEVICE"
-    first = list(identifiers[0])
-    if first:
-        return str(first[0]).upper()
-    return "DEVICE"
+    # Each identifier is a (domain, unique_id) tuple — domain is first element
+    return str(identifiers[0][0]).upper()
 
 
 def _is_eligible(entity) -> bool:

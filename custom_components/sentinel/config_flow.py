@@ -52,6 +52,8 @@ class SentinelConfigFlow(ConfigFlow, domain=DOMAIN):
                     CONF_FIRE_EVENTS: user_input.get(CONF_FIRE_EVENTS, DEFAULT_FIRE_EVENTS),
                     CONF_EXCLUDED_ENTRIES: [],
                     CONF_EXTRA_ENTRIES: [],
+                    CONF_IGNORED_DEVICE_SOURCES: [],
+                    CONF_IGNORED_DEVICE_IDS: [],
                 },
             )
 
