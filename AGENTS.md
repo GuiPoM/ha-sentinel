@@ -73,9 +73,9 @@ Every health change fires `sentinel_item_changed` on the HA event bus with field
 - Must have `device_id`, no `entity_category`, not `disabled_by`
 
 ### Silence detection
-- **Only** applies to entities with `device_class` in `PERIODIC_DEVICE_CLASSES` (temperature, humidity, moisture, co, co2)
-- **Never** applies to PHYSICAL_DOMAINS or event-based sensors (motion, door, smoke...)
-- Uses `dt_util.utcnow()` and `state.last_updated` (timezone-aware)
+- **Removed in v0.5.2** — silence detection generated false positives on event-based sensors
+- A device is unhealthy **only** when at least one entity is `unavailable`
+- `unavailable` is the reliable signal from hubs (Hue, Z-Wave JS, Matter...) that a device is unreachable
 
 ### Noise suppression
 If an integration is already in error, its devices are suppressed (coordinator checks `IntegrationsProvider` for the device's `config_entries`)

@@ -12,18 +12,14 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 
 from .const import (
-    CONF_DETECT_SILENCE,
     CONF_EXCLUDED_ENTRIES,
     CONF_EXTRA_ENTRIES,
     CONF_FIRE_EVENTS,
     CONF_GRACE_PERIOD,
     CONF_IGNORED_DEVICE_IDS,
     CONF_IGNORED_DEVICE_SOURCES,
-    CONF_SILENCE_THRESHOLD_HOURS,
-    DEFAULT_DETECT_SILENCE,
     DEFAULT_FIRE_EVENTS,
     DEFAULT_GRACE_PERIOD,
-    DEFAULT_SILENCE_THRESHOLD_HOURS,
     EVENT_ITEM_CHANGED,
     PROVIDER_DEVICES,
     PROVIDER_INTEGRATIONS,
@@ -67,10 +63,6 @@ class SentinelCoordinator:
             self.hass,
             ignored_device_sources=set(self._config.get(CONF_IGNORED_DEVICE_SOURCES, [])),
             ignored_device_ids=set(self._config.get(CONF_IGNORED_DEVICE_IDS, [])),
-            detect_silence=self._config.get(CONF_DETECT_SILENCE, DEFAULT_DETECT_SILENCE),
-            silence_threshold_hours=self._config.get(
-                CONF_SILENCE_THRESHOLD_HOURS, DEFAULT_SILENCE_THRESHOLD_HOURS
-            ),
             integration_problem_checker=self._device_integration_has_problem,
         )
         self._providers[PROVIDER_DEVICES] = devices_provider
@@ -174,22 +166,3 @@ class SentinelCoordinator:
                 async_dispatcher_send(self.hass, SIGNAL_SENTINEL_UPDATE, item)
                 return
 
-    def update_config(self, new_config: dict) -> None:
-        """Update coordinator configuration (called on options update)."""
-        self._config = new_config
-        if PROVIDER_INTEGRATIONS in self._providers:
-            provider = self._providers[PROVIDER_INTEGRATIONS]
-            if isinstance(provider, IntegrationsProvider):
-                provider.update_excluded(set(new_config.get(CONF_EXCLUDED_ENTRIES, [])))
-                provider.update_extra(set(new_config.get(CONF_EXTRA_ENTRIES, [])))
-        if PROVIDER_DEVICES in self._providers:
-            provider = self._providers[PROVIDER_DEVICES]
-            if isinstance(provider, DevicesProvider):
-                provider.update_config(
-                    ignored_device_sources=set(new_config.get(CONF_IGNORED_DEVICE_SOURCES, [])),
-                    ignored_device_ids=set(new_config.get(CONF_IGNORED_DEVICE_IDS, [])),
-                    detect_silence=new_config.get(CONF_DETECT_SILENCE, DEFAULT_DETECT_SILENCE),
-                    silence_threshold_hours=new_config.get(
-                        CONF_SILENCE_THRESHOLD_HOURS, DEFAULT_SILENCE_THRESHOLD_HOURS
-                    ),
-                )

@@ -71,12 +71,10 @@ After adding the integration, configure via **Settings → Devices & Services �
 
 | Option | Default | Description |
 |---|---|---|
-| Detect silence | Yes | Flag periodic sensors that haven't reported in a while |
-| Silence threshold | 24h | How long without an update before a sensor is considered silent |
 | Ignored device sources | None | Integration sources to ignore (e.g. `mobile_app`, `cast`) |
 | Ignored devices | None | Specific devices to exclude from monitoring |
 
-> **Note:** Silence detection only applies to periodic sensors (`temperature`, `humidity`, `moisture`, `co`, `co2`). Lights, switches, locks and event-based sensors (`motion`, `door`, `smoke`…) are never flagged as silent — they only report on state change, which is normal behavior.
+> **How device health is determined:** a device is unhealthy when at least one of its monitored entities becomes `unavailable`. This is the only reliable signal that a device has lost connectivity with its hub (Hue, Z-Wave JS, Zigbee2MQTT, Matter…). There is no "silence" detection — event-based sensors (motion, door, smoke, water leak…) only report on state change, which is normal behavior.
 
 ### What gets monitored by default
 
@@ -225,8 +223,7 @@ type: custom:ha-sentinel-devices-card
 | `setup_error` | `error` | Setup failed — needs attention |
 | `migration_error` | `error` | Migration failed |
 | `failed_unload` | `error` | Could not unload cleanly |
-| `unavailable` | `error` | Device entity unavailable |
-| `silent` | `warning` | Periodic sensor (temperature, humidity, CO2…) has not reported in >threshold — only applies to sensors that report regularly, never to lights, switches or event-based sensors |
+| `unavailable` | `error` | Device entity unavailable — device has lost connectivity with its hub |
 
 ---
 

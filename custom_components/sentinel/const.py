@@ -18,14 +18,10 @@ CONF_FIRE_EVENTS = "fire_events"
 # Configuration keys — devices provider
 CONF_IGNORED_DEVICE_SOURCES = "ignored_device_sources"
 CONF_IGNORED_DEVICE_IDS = "ignored_device_ids"
-CONF_DETECT_SILENCE = "detect_silence"
-CONF_SILENCE_THRESHOLD_HOURS = "silence_threshold_hours"
 
 # Defaults
 DEFAULT_GRACE_PERIOD = 30  # seconds
 DEFAULT_FIRE_EVENTS = True
-DEFAULT_DETECT_SILENCE = True
-DEFAULT_SILENCE_THRESHOLD_HOURS = 24
 
 # Sources that are always excluded — system internals or user-ignored discoveries
 EXCLUDED_SOURCES = {"system", "ignore"}
@@ -147,15 +143,4 @@ VITAL_DEVICE_CLASSES: frozenset[str] = frozenset({
     BinarySensorDeviceClass.TAMPER,
     BinarySensorDeviceClass.SAFETY,
     BinarySensorDeviceClass.CONNECTIVITY,
-})
-
-# Device classes that report periodically — silence detection applies only to these.
-# Event-based sensors (motion, door, smoke...) and physical domains (light, switch...)
-# are excluded from silence detection as they only report on state change.
-PERIODIC_DEVICE_CLASSES: frozenset[str] = frozenset({
-    SensorDeviceClass.TEMPERATURE,
-    SensorDeviceClass.HUMIDITY,
-    SensorDeviceClass.MOISTURE,
-    SensorDeviceClass.CO,
-    SensorDeviceClass.CO2,
 })
