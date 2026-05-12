@@ -1,0 +1,23 @@
+[project]
+name = "ha-sentinel"
+version = "0.5.4"
+description = "Proactive health monitoring for Home Assistant integrations and devices."
+readme = "README.md"
+requires-python = ">=3.13"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.26",
+    "pytest-homeassistant-custom-component>=0.13",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+addopts = "-v"
+filterwarnings = [
+    "ignore::pytest.PytestDeprecationWarning",
+    "ignore::DeprecationWarning",
+]
