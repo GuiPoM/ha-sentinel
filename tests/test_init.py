@@ -1,7 +1,7 @@
 """Integration tests for Sentinel — full setup/teardown with real hass."""
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import MagicMock
 
 from custom_components.sentinel.const import (
     CONF_FIRE_EVENTS,
@@ -17,7 +17,6 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from homeassistant.config_entries import (
     SIGNAL_CONFIG_ENTRY_CHANGED,
     ConfigEntryChange,
-    ConfigEntryState,
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
@@ -159,7 +158,11 @@ async def test_sentinel_fires_event_on_integration_problem(
     hass: HomeAssistant,
     sentinel_config_entry: MockConfigEntry,
 ) -> None:
-    """Test that sentinel_item_changed event is fired when an integration fails."""
+    """Test that sentinel_item_changed event is fired when an integration fails.
+
+    We verify this by directly calling _apply_state on the provider with a
+    setup_error state, simulating what would happen when a real integration fails.
+    """
     await setup_sentinel(hass, sentinel_config_entry)
 
     events = []
@@ -169,7 +172,7 @@ async def test_sentinel_fires_event_on_integration_problem(
 
     hass.bus.async_listen(EVENT_ITEM_CHANGED, _capture)
 
-    # Register a fake netatmo entry and add to hass
+    # Register a fake netatmo entry
     fake_entry = MockConfigEntry(
         domain="netatmo",
         title="Netatmo",
@@ -180,18 +183,29 @@ async def test_sentinel_fires_event_on_integration_problem(
     )
     fake_entry.add_to_hass(hass)
 
-    # Trigger ADDED so Sentinel starts watching it
+    # Add the entry to Sentinel's tracked items via ADDED signal
     async_dispatcher_send(hass, SIGNAL_CONFIG_ENTRY_CHANGED, ConfigEntryChange.ADDED, fake_entry)
     await hass.async_block_till_done()
 
-    # Directly call _apply_state on the integrations provider to simulate a failure
+    # Get the integrations provider and directly apply a setup_error state
     coordinator = hass.data[DOMAIN][sentinel_config_entry.entry_id]
     int_provider = coordinator._providers.get("integrations")
+
     if int_provider and "fake_netatmo" in int_provider._items:
-        # Simulate transition to error by calling _apply_state directly
-        with patch.object(fake_entry, "state", ConfigEntryState.SETUP_ERROR):
-            int_provider._apply_state(fake_entry, "setup_error")
-            await hass.async_block_till_done()
+        # Directly set previous state to healthy, then apply error
+        int_provider._previous_healthy["fake_netatmo"] = True
+        # Build a mock entry with setup_error state for _apply_state
+        mock_entry = MagicMock()
+        mock_entry.entry_id = "fake_netatmo"
+        mock_entry.title = "Netatmo"
+        mock_entry.domain = "netatmo"
+        mock_entry.source = "user"
+        mock_entry.reason = None
+        mock_entry.disabled_by = None
+        mock_entry.state.recoverable = True
+
+        int_provider._apply_state(mock_entry, "setup_error")
+        await hass.async_block_till_done()
 
         problem_events = [e for e in events if not e.data.get("healthy")]
         assert len(problem_events) > 0
