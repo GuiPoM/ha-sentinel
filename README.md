@@ -247,6 +247,7 @@ type: custom:ha-sentinel-apps-card
 | `unknown` | `warning` | Application in unknown state |
 
 *`stopped` only reported as warning if `watch_stopped_addons` is enabled.
+
 **`not_loaded` without `disabled_by` — integration is not intentionally disabled.
 
 ---
