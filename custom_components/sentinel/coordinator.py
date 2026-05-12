@@ -18,14 +18,18 @@ from .const import (
     CONF_GRACE_PERIOD,
     CONF_IGNORED_DEVICE_IDS,
     CONF_IGNORED_DEVICE_SOURCES,
+    CONF_WATCH_STOPPED_ADDONS,
     DEFAULT_FIRE_EVENTS,
     DEFAULT_GRACE_PERIOD,
+    DEFAULT_WATCH_STOPPED_ADDONS,
     EVENT_ITEM_CHANGED,
+    PROVIDER_APPS,
     PROVIDER_DEVICES,
     PROVIDER_INTEGRATIONS,
     SIGNAL_SENTINEL_UPDATE,
 )
 from .providers import HealthItem, HealthProvider
+from .providers.apps import AppsProvider
 from .providers.devices import DevicesProvider
 from .providers.integrations import IntegrationsProvider
 
@@ -67,6 +71,14 @@ class SentinelCoordinator:
         self._providers[PROVIDER_DEVICES] = devices_provider
         await devices_provider.async_setup(self._on_item_changed)
 
+        # v3: apps (add-ons) provider — only active on HA OS
+        apps_provider = AppsProvider(
+            self.hass,
+            watch_stopped=self._config.get(CONF_WATCH_STOPPED_ADDONS, DEFAULT_WATCH_STOPPED_ADDONS),
+        )
+        self._providers[PROVIDER_APPS] = apps_provider
+        await apps_provider.async_setup(self._on_item_changed)
+
         _LOGGER.debug("Sentinel coordinator set up with providers: %s", list(self._providers))
 
     async def async_unload(self) -> None:
@@ -101,7 +113,12 @@ class SentinelCoordinator:
         if fire_events:
             source = item.extra.get("source", "")
             domain = item.extra.get("domain", "") or source.lower()
-            item_type = "device" if item.provider == PROVIDER_DEVICES else "integration"
+            if item.provider == PROVIDER_DEVICES:
+                item_type = "device"
+            elif item.provider == PROVIDER_APPS:
+                item_type = "addon"
+            else:
+                item_type = "integration"
             self.hass.bus.async_fire(
                 EVENT_ITEM_CHANGED,
                 {

@@ -8,6 +8,7 @@ import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow
 from homeassistant.core import callback
 from homeassistant.helpers.selector import (
+    BooleanSelector,
     DeviceSelector,
     DeviceSelectorConfig,
     SelectSelector,
@@ -22,8 +23,10 @@ from .const import (
     CONF_GRACE_PERIOD,
     CONF_IGNORED_DEVICE_IDS,
     CONF_IGNORED_DEVICE_SOURCES,
+    CONF_WATCH_STOPPED_ADDONS,
     DEFAULT_FIRE_EVENTS,
     DEFAULT_GRACE_PERIOD,
+    DEFAULT_WATCH_STOPPED_ADDONS,
     DOMAIN,
     EXCLUDED_DOMAINS,
     EXCLUDED_SOURCES,
@@ -54,6 +57,7 @@ class SentinelConfigFlow(ConfigFlow, domain=DOMAIN):
                     CONF_EXTRA_ENTRIES: [],
                     CONF_IGNORED_DEVICE_SOURCES: [],
                     CONF_IGNORED_DEVICE_IDS: [],
+                    CONF_WATCH_STOPPED_ADDONS: DEFAULT_WATCH_STOPPED_ADDONS,
                 },
             )
 
@@ -152,6 +156,11 @@ class SentinelOptionsFlow(OptionsFlow):
                     CONF_IGNORED_DEVICE_IDS,
                     default=current.get(CONF_IGNORED_DEVICE_IDS, []),
                 ): DeviceSelector(DeviceSelectorConfig(multiple=True)),
+                # --- Apps provider ---
+                vol.Optional(
+                    CONF_WATCH_STOPPED_ADDONS,
+                    default=current.get(CONF_WATCH_STOPPED_ADDONS, DEFAULT_WATCH_STOPPED_ADDONS),
+                ): BooleanSelector(),
             }
         )
 

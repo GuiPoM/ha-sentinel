@@ -67,9 +67,23 @@ After adding the integration, configure via **Settings → Devices & Services �
 | Excluded integrations | None | Integrations to exclude from monitoring |
 | Extra integrations | None | Auto-discovered or system entries to add explicitly |
 
-### Devices provider
+### Apps provider (HA OS only)
 
 | Option | Default | Description |
+|---|---|---|
+| Watch stopped add-ons | No | Report stopped add-ons as warnings (by default, stopped = intentional, ignored) |
+
+> **Note:** The Apps provider is only active on HA OS / Supervised installations. On other installation types it is silently skipped.
+
+**Add-on states:**
+
+| State | Severity | Meaning |
+|---|---|---|
+| `started` | `ok` | Running normally |
+| `stopped` | `ok` (or `warning` if option enabled) | Intentionally stopped |
+| `error` | `error` | Docker failure on start/stop |
+| `unknown` | `warning` | Initial or post-uninstall state |
+| `startup` | ignored | Transient — add-on is starting up |
 |---|---|---|
 | Ignored device sources | None | Integration sources to ignore (e.g. `mobile_app`, `cast`) |
 | Ignored devices | None | Specific devices to exclude from monitoring |

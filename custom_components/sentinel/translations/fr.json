@@ -29,7 +29,8 @@
           "excluded_entries": "Intégrations exclues",
           "extra_entries": "Intégrations supplémentaires à surveiller",
           "ignored_device_sources": "Sources d'appareils ignorées",
-          "ignored_device_ids": "Appareils ignorés"
+          "ignored_device_ids": "Appareils ignorés",
+          "watch_stopped_addons": "Signaler les add-ons arrêtés en avertissement"
         },
         "data_description": {
           "grace_period": "Durée pendant laquelle une intégration doit rester en erreur avant d'être signalée (0 = immédiat).",
@@ -37,7 +38,8 @@
           "excluded_entries": "Intégrations à exclure de la surveillance.",
           "extra_entries": "Intégrations supplémentaires à surveiller (auto-découvertes, système, etc.).",
           "ignored_device_sources": "Sources d'intégration à exclure de la surveillance des appareils (ex : mobile_app, cast).",
-          "ignored_device_ids": "Appareils spécifiques à exclure de la surveillance."
+          "ignored_device_ids": "Appareils spécifiques à exclure de la surveillance.",
+          "watch_stopped_addons": "Si activé, les add-ons arrêtés sont signalés en avertissement. Par défaut, les add-ons arrêtés sont ignorés (arrêt intentionnel)."
         }
       }
     }

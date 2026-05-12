@@ -37,6 +37,7 @@ custom_components/sentinel/
 Each provider implements `HealthProvider` and produces `HealthItem` objects:
 - `PROVIDER_INTEGRATIONS = "integrations"` — watches HA config entries
 - `PROVIDER_DEVICES = "devices"` — watches physical device entities
+- `PROVIDER_APPS = "apps"` — watches HA OS add-ons via Supervisor API (HA OS only)
 
 ### HealthItem
 ```python
@@ -76,6 +77,13 @@ Every health change fires `sentinel_item_changed` on the HA event bus with field
 - **Removed in v0.5.2** — silence detection generated false positives on event-based sensors
 - A device is unhealthy **only** when at least one entity is `unavailable`
 - `unavailable` is the reliable signal from hubs (Hue, Z-Wave JS, Matter...) that a device is unreachable
+
+### Apps provider (HA OS only)
+- Only active when `_is_hassio(hass)` returns True
+- Polls `get_addons_info(hass)` every 60s — uses hassio coordinator cache, no direct HTTP
+- States: `started` → ok, `error` → error, `unknown` → warning, `stopped` → ok (or warning if `watch_stopped_addons=True`), `startup` → ignored
+- `can_reload = True` → `sentinel.reload` calls `get_supervisor_client(hass).addons.restart_addon(slug)`
+- `item_type = "addon"` in `sentinel_item_changed` events
 
 ### Noise suppression
 If an integration is already in error, its devices are suppressed (coordinator checks `IntegrationsProvider` for the device's `config_entries`)
