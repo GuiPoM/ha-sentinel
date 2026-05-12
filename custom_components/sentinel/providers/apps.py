@@ -44,21 +44,18 @@ _WARNING_STATES = {_STATE_UNKNOWN}
 _TRANSIENT_STATES = {_STATE_STARTUP}
 
 
-def _get_addons(hass: HomeAssistant) -> list[dict[str, Any]]:
-    """Return the list of installed add-ons from the hassio coordinator cache.
+async def _get_addons(hass: HomeAssistant) -> list[Any]:
+    """Return the list of installed add-ons directly from the Supervisor.
 
-    Uses get_addons_list which returns list[dict] directly — lighter than
-    get_addons_info and always available when the hassio coordinator is loaded.
+    Uses get_supervisor_client().addons.list() for fresh real-time data —
+    never stale, always reflects the current Supervisor state.
     """
     try:
-        from homeassistant.components.hassio import get_addons_list  # noqa: PLC0415
-        addons = get_addons_list(hass)
-        if addons is None:
-            _LOGGER.debug("Sentinel AppsProvider: get_addons_list returned None — coordinator not ready yet")
-            return []
-        return addons
+        from homeassistant.components.hassio import get_supervisor_client  # noqa: PLC0415
+        addons = await get_supervisor_client(hass).addons.list()
+        return addons or []
     except Exception as err:
-        _LOGGER.debug("Sentinel AppsProvider: could not get addons list: %s", err)
+        _LOGGER.debug("Sentinel AppsProvider: could not get addons from Supervisor: %s", err)
         return []
 
 
@@ -66,8 +63,7 @@ async def _restart_addon(hass: HomeAssistant, slug: str) -> bool:
     """Restart an add-on via the Supervisor API."""
     try:
         from homeassistant.components.hassio import get_supervisor_client  # noqa: PLC0415
-        client = get_supervisor_client(hass)
-        await client.addons.restart_addon(slug)
+        await get_supervisor_client(hass).addons.restart_addon(slug)
         return True
     except Exception as err:
         _LOGGER.error("Failed to restart add-on %s: %s", slug, err)
@@ -77,7 +73,7 @@ async def _restart_addon(hass: HomeAssistant, slug: str) -> bool:
 class AppsProvider(HealthProvider):
     """Health provider for Home Assistant OS add-ons.
 
-    Polls get_addons_list() every 60s to detect add-ons in error or unknown state.
+    Polls Supervisor directly every 60s for real-time add-on states.
     Only active on HA OS / Supervised installations.
     """
 
@@ -145,7 +141,7 @@ class AppsProvider(HealthProvider):
 
     async def _async_scan(self) -> None:
         """Scan all installed add-ons and update health items."""
-        addons = _get_addons(self.hass)
+        addons = await _get_addons(self.hass)
         if not addons:
             return
 
@@ -170,20 +166,22 @@ class AppsProvider(HealthProvider):
                 self._previous_healthy.pop(slug, None)
 
     def _get_slug(self, addon: Any) -> str | None:
-        """Extract the slug from an addon dict."""
-        return addon.get("slug") if isinstance(addon, dict) else getattr(addon, "slug", None)
+        """Extract the slug from an InstalledAddon object or dict."""
+        if isinstance(addon, dict):
+            return addon.get("slug")
+        return getattr(addon, "slug", None)
 
     def _get_state(self, addon: Any) -> str:
-        """Extract the raw state string from an addon dict."""
+        """Extract the raw state string from an InstalledAddon object or dict."""
         if isinstance(addon, dict):
             state = addon.get("state", _STATE_UNKNOWN)
         else:
             state = getattr(addon, "state", _STATE_UNKNOWN)
-        # Normalize — may be an AddonState enum value
+        # Normalize — AddonState is a StrEnum, .value gives the raw string
         return str(state.value if hasattr(state, "value") else state)
 
     def _get_name(self, addon: Any) -> str:
-        """Extract the display name from an addon dict."""
+        """Extract the display name from an InstalledAddon object or dict."""
         if isinstance(addon, dict):
             return addon.get("name") or addon.get("slug", "unknown")
         return getattr(addon, "name", None) or getattr(addon, "slug", "unknown")
@@ -239,3 +237,4 @@ class AppsProvider(HealthProvider):
             return True, "ok"  # ignored — intentional stop
         # Any future unknown state → warning
         return False, "warning"
+
