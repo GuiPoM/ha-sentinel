@@ -61,3 +61,5 @@ combine-as-imports = true
 
 [lint.per-file-ignores]
 "custom_components/sentinel/providers/apps.py" = ["ALL"]  # stub file, not yet implemented
+"tests/**/*.py" = ["PLC0415", "PLW0108", "RUF059"]  # tests may use local imports
+"tests/*.py" = ["PLC0415", "PLW0108", "RUF059"]      # tests may use local imports

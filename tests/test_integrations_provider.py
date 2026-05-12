@@ -1,7 +1,7 @@
 """Tests for IntegrationsProvider — filtering, state transitions, failure_count."""
 from __future__ import annotations
 
-import pytest
+from unittest.mock import MagicMock
 
 from custom_components.sentinel.const import (
     DOMAIN,
@@ -14,12 +14,11 @@ from custom_components.sentinel.const import (
     WARNING_STATES,
 )
 from custom_components.sentinel.providers.integrations import (
-    _entry_state_str,
+    IntegrationsProvider,
     _get_severity,
     _is_healthy,
     _is_problem,
 )
-
 
 # ---------------------------------------------------------------------------
 # _is_healthy / _is_problem / _get_severity — pure functions
@@ -96,16 +95,12 @@ class TestShouldWatch:
     """Test IntegrationsProvider._should_watch filtering."""
 
     def _make_provider(self, excluded=None, extra=None):
-        from unittest.mock import MagicMock
-        from custom_components.sentinel.providers.integrations import IntegrationsProvider
-
         hass = MagicMock()
-        provider = IntegrationsProvider(
+        return IntegrationsProvider(
             hass,
             excluded_entry_ids=set(excluded or []),
             extra_entry_ids=set(extra or []),
         )
-        return provider
 
     def test_normal_user_integration_is_watched(self):
         provider = self._make_provider()

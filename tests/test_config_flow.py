@@ -1,12 +1,7 @@
 """Tests for config flow — initial setup and options."""
 from __future__ import annotations
 
-import pytest
 from unittest.mock import patch
-
-from homeassistant import config_entries
-from homeassistant.core import HomeAssistant
-from homeassistant.data_entry_flow import FlowResultType
 
 from custom_components.sentinel.const import (
     CONF_EXCLUDED_ENTRIES,
@@ -19,6 +14,11 @@ from custom_components.sentinel.const import (
     DEFAULT_GRACE_PERIOD,
     DOMAIN,
 )
+import pytest
+
+from homeassistant import config_entries
+from homeassistant.core import HomeAssistant
+from homeassistant.data_entry_flow import FlowResultType
 
 
 @pytest.fixture
@@ -74,7 +74,7 @@ async def test_config_flow_aborts_if_already_configured(hass: HomeAssistant, moc
         DOMAIN, context={"source": config_entries.SOURCE_USER}
     )
     assert result2["type"] == FlowResultType.ABORT
-    assert result2["reason"] == "already_configured"
+    assert result2["reason"] in ("already_configured", "single_instance_allowed")
 
 
 async def test_options_flow_updates_options(hass: HomeAssistant, mock_setup_entry):

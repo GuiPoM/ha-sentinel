@@ -3,14 +3,17 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
-from custom_components.sentinel.const import PHYSICAL_DOMAINS, VITAL_DEVICE_CLASSES
+from custom_components.sentinel.const import PHYSICAL_DOMAINS
 from custom_components.sentinel.providers.devices import (
+    DevicesProvider,
     _get_device_source,
     _is_eligible,
 )
 
+from homeassistant.components.binary_sensor import BinarySensorDeviceClass
+from homeassistant.components.sensor import SensorDeviceClass
+from homeassistant.const import EntityCategory
+from homeassistant.helpers.entity_registry import RegistryEntryDisabler
 
 # ---------------------------------------------------------------------------
 # _is_eligible — pure filtering logic
@@ -44,17 +47,14 @@ class TestIsEligible:
         assert _is_eligible(entity) is False
 
     def test_diagnostic_entity_is_not_eligible(self):
-        from homeassistant.const import EntityCategory
         entity = MockEntity(entity_category=EntityCategory.DIAGNOSTIC)
         assert _is_eligible(entity) is False
 
     def test_config_entity_is_not_eligible(self):
-        from homeassistant.const import EntityCategory
         entity = MockEntity(entity_category=EntityCategory.CONFIG)
         assert _is_eligible(entity) is False
 
     def test_disabled_entity_is_not_eligible(self):
-        from homeassistant.helpers.entity_registry import RegistryEntryDisabler
         entity = MockEntity(disabled_by=RegistryEntryDisabler.USER)
         assert _is_eligible(entity) is False
 
@@ -64,7 +64,6 @@ class TestIsEligible:
             assert _is_eligible(entity) is True, f"domain={domain} should be eligible"
 
     def test_sensor_with_vital_device_class_is_eligible(self):
-        from homeassistant.components.sensor import SensorDeviceClass
         entity = MockEntity(
             domain="sensor",
             original_device_class=SensorDeviceClass.TEMPERATURE,
@@ -72,7 +71,6 @@ class TestIsEligible:
         assert _is_eligible(entity) is True
 
     def test_binary_sensor_with_vital_device_class_is_eligible(self):
-        from homeassistant.components.binary_sensor import BinarySensorDeviceClass
         entity = MockEntity(
             domain="binary_sensor",
             original_device_class=BinarySensorDeviceClass.MOTION,
@@ -84,7 +82,6 @@ class TestIsEligible:
         assert _is_eligible(entity) is False
 
     def test_binary_sensor_without_vital_class_is_not_eligible(self):
-        from homeassistant.components.binary_sensor import BinarySensorDeviceClass
         entity = MockEntity(
             domain="binary_sensor",
             original_device_class=BinarySensorDeviceClass.BATTERY,
@@ -97,7 +94,6 @@ class TestIsEligible:
 
     def test_original_device_class_takes_priority_over_device_class(self):
         """original_device_class is checked first."""
-        from homeassistant.components.sensor import SensorDeviceClass
         entity = MockEntity(
             domain="sensor",
             original_device_class=SensorDeviceClass.TEMPERATURE,
@@ -112,18 +108,6 @@ class TestIsEligible:
 
 class TestGetDeviceSource:
     """Test _get_device_source with various identifier configurations."""
-
-    def _make_hass(self, identifiers):
-        hass = MagicMock()
-        device = MagicMock()
-        device.identifiers = identifiers
-        dr = MagicMock()
-        dr.async_get.return_value = device
-        with patch(
-            "custom_components.sentinel.providers.devices.dr.async_get",
-            return_value=dr,
-        ):
-            return hass, dr
 
     def test_returns_device_when_no_device(self):
         hass = MagicMock()
@@ -154,16 +138,15 @@ class TestGetDeviceSource:
         assert result == "HUE"
 
     def test_deterministic_with_multiple_identifiers(self):
-        """Should return the same result regardless of set ordering."""
+        """sorted() ensures aaa_domain always comes first."""
         hass = MagicMock()
         device = MagicMock()
         device.identifiers = {("zwave_js", "node1"), ("aaa_domain", "xyz")}
         dr_mock = MagicMock()
         dr_mock.async_get.return_value = device
         with patch("custom_components.sentinel.providers.devices.dr.async_get", return_value=dr_mock):
-            result1 = _get_device_source(hass, "device_123")
-        # sorted() means "aaa_domain" always comes first
-        assert result1 == "AAA_DOMAIN"
+            result = _get_device_source(hass, "device_123")
+        assert result == "AAA_DOMAIN"
 
 
 # ---------------------------------------------------------------------------
@@ -174,14 +157,12 @@ class TestShouldWatchDevice:
     """Test DevicesProvider._should_watch_device."""
 
     def _make_provider(self, ignored_sources=None, ignored_ids=None):
-        from custom_components.sentinel.providers.devices import DevicesProvider
         hass = MagicMock()
-        provider = DevicesProvider(
+        return DevicesProvider(
             hass,
             ignored_device_sources=set(ignored_sources or []),
             ignored_device_ids=set(ignored_ids or []),
         )
-        return provider
 
     def test_normal_device_is_watched(self):
         provider = self._make_provider()
