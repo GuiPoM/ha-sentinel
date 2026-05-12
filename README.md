@@ -26,7 +26,7 @@ Sentinel watches your integrations, physical devices and add-ons in real time. N
 
 - **Real-time integration monitoring** — listens to HA's internal dispatcher, zero polling
 - **Physical device monitoring** — detects unavailable entities (Hue, Z-Wave, Zigbee, Matter…)
-- **Add-on monitoring** — polls HA OS Supervisor for crashed or errored add-ons (HA OS only)
+- **Add-on monitoring** — queries the Supervisor API directly (real-time, no cache) for crashed or errored add-ons (HA OS only)
 - **Smart noise reduction** — if an integration fails, its devices are suppressed to avoid alert storms
 - **Severity levels** — `error` (setup_error, migration_error) vs `warning` (setup_retry)
 - **Grace period** — configurable delay before flagging a problem, avoids false positives on startup
@@ -103,10 +103,11 @@ After adding the integration, configure via **Settings → Devices & Services �
 **Integrations** — all user-configured integrations except:
 - Internal helpers (`template`, `group`, `input_*`, `automation`, `script`…)
 - System domains (`homeassistant`, `hacs`, `sentinel`)
+- User-disabled integrations (`disabled_by = user`)
 
 **Devices** — entities in physical domains (`light`, `switch`, `lock`, `climate`, `cover`, `valve`…) and vital device classes (`temperature`, `humidity`, `motion`, `smoke`, `door`, `window`, `co`, `co2`…)
 
-**Add-ons** — all installed add-ons on HA OS (state `error` or `unknown`)
+**Add-ons** — all installed add-ons on HA OS, polled directly from the Supervisor API every 60s
 
 ---
 
@@ -235,6 +236,9 @@ type: custom:ha-sentinel-card
 
 # Devices card
 type: custom:ha-sentinel-devices-card
+
+# Add-ons card (HA OS only)
+type: custom:ha-sentinel-apps-card
 ```
 
 ---
@@ -245,6 +249,7 @@ type: custom:ha-sentinel-devices-card
 |---|---|---|
 | `loaded` / `started` / `ok` | `ok` | Running normally |
 | `setup_retry` / `stopped`* | `warning` | May recover on its own |
+| `not_loaded`** | `warning` | Integration should be running but isn't |
 | `setup_error` / `error` | `error` | Needs attention |
 | `migration_error` | `error` | Migration failed |
 | `failed_unload` | `error` | Could not unload cleanly |
@@ -252,6 +257,7 @@ type: custom:ha-sentinel-devices-card
 | `unknown` | `warning` | Add-on in unknown state |
 
 *`stopped` only reported as warning if `watch_stopped_addons` is enabled.
+**`not_loaded` without `disabled_by` — integration is not intentionally disabled.
 
 ---
 
