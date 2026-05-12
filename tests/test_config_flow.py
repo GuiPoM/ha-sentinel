@@ -5,7 +5,6 @@ from unittest.mock import patch
 
 from custom_components.sentinel.const import (
     CONF_EXCLUDED_ENTRIES,
-    CONF_EXTRA_ENTRIES,
     CONF_FIRE_EVENTS,
     CONF_GRACE_PERIOD,
     CONF_IGNORED_DEVICE_IDS,
@@ -53,7 +52,6 @@ async def test_config_flow_creates_entry(hass: HomeAssistant, mock_setup_entry):
     assert options[CONF_GRACE_PERIOD] == 30
     assert options[CONF_FIRE_EVENTS] is True
     assert options[CONF_EXCLUDED_ENTRIES] == []
-    assert options[CONF_EXTRA_ENTRIES] == []
     assert options[CONF_IGNORED_DEVICE_SOURCES] == []
     assert options[CONF_IGNORED_DEVICE_IDS] == []
 
@@ -102,7 +100,6 @@ async def test_options_flow_updates_options(hass: HomeAssistant, mock_setup_entr
             CONF_GRACE_PERIOD: 60,
             CONF_FIRE_EVENTS: False,
             CONF_EXCLUDED_ENTRIES: [],
-            CONF_EXTRA_ENTRIES: [],
             CONF_IGNORED_DEVICE_SOURCES: ["mobile_app"],
             CONF_IGNORED_DEVICE_IDS: [],
         },

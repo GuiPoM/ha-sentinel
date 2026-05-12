@@ -12,13 +12,14 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 
 from .const import (
+    CONF_APPS_POLL_INTERVAL,
     CONF_EXCLUDED_ENTRIES,
-    CONF_EXTRA_ENTRIES,
     CONF_FIRE_EVENTS,
     CONF_GRACE_PERIOD,
     CONF_IGNORED_DEVICE_IDS,
     CONF_IGNORED_DEVICE_SOURCES,
     CONF_WATCH_STOPPED_ADDONS,
+    DEFAULT_APPS_POLL_INTERVAL,
     DEFAULT_FIRE_EVENTS,
     DEFAULT_GRACE_PERIOD,
     DEFAULT_WATCH_STOPPED_ADDONS,
@@ -49,13 +50,11 @@ class SentinelCoordinator:
         """Set up all providers."""
         grace_period: int = self._config.get(CONF_GRACE_PERIOD, DEFAULT_GRACE_PERIOD)
         excluded: list[str] = self._config.get(CONF_EXCLUDED_ENTRIES, [])
-        extra: list[str] = self._config.get(CONF_EXTRA_ENTRIES, [])
 
         # v1: integrations provider
         integrations_provider = IntegrationsProvider(
             self.hass,
             excluded_entry_ids=set(excluded),
-            extra_entry_ids=set(extra),
             grace_period=grace_period,
         )
         self._providers[PROVIDER_INTEGRATIONS] = integrations_provider
@@ -75,6 +74,7 @@ class SentinelCoordinator:
         apps_provider = AppsProvider(
             self.hass,
             watch_stopped=self._config.get(CONF_WATCH_STOPPED_ADDONS, DEFAULT_WATCH_STOPPED_ADDONS),
+            poll_interval=self._config.get(CONF_APPS_POLL_INTERVAL, DEFAULT_APPS_POLL_INTERVAL),
         )
         self._providers[PROVIDER_APPS] = apps_provider
         await apps_provider.async_setup(self._on_item_changed)

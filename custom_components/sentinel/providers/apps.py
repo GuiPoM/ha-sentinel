@@ -22,13 +22,13 @@ from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.hassio import is_hassio
 from homeassistant.util import dt as dt_util
 
-from ..const import PROVIDER_APPS
+from ..const import DEFAULT_APPS_POLL_INTERVAL, PROVIDER_APPS
 from . import HealthItem, HealthProvider
 
 _LOGGER = logging.getLogger(__name__)
 
-# How often to poll the Supervisor for add-on states
-_POLL_INTERVAL = timedelta(seconds=60)
+# Default poll interval — overridden by config
+_DEFAULT_POLL_INTERVAL = timedelta(seconds=DEFAULT_APPS_POLL_INTERVAL)
 
 # Raw Supervisor AddonState values
 _STATE_STARTED = "started"
@@ -81,10 +81,12 @@ class AppsProvider(HealthProvider):
         self,
         hass: HomeAssistant,
         watch_stopped: bool = False,
+        poll_interval: int = DEFAULT_APPS_POLL_INTERVAL,
     ) -> None:
         """Initialize the apps provider."""
         super().__init__(hass)
         self._watch_stopped = watch_stopped
+        self._poll_interval = timedelta(seconds=poll_interval)
         self._on_change: Callable[[HealthItem], None] | None = None
         self._unsub_poll: Callable | None = None
         self._previous_healthy: dict[str, bool] = {}
@@ -117,7 +119,7 @@ class AppsProvider(HealthProvider):
         self._unsub_poll = async_track_time_interval(
             self.hass,
             self._async_poll,
-            _POLL_INTERVAL,
+            self._poll_interval,
         )
 
         _LOGGER.debug(

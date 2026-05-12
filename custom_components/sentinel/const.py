@@ -11,7 +11,6 @@ NAME = "Sentinel"
 # Configuration keys
 CONF_GRACE_PERIOD = "grace_period"
 CONF_EXCLUDED_ENTRIES = "excluded_entries"
-CONF_EXTRA_ENTRIES = "extra_entries"
 CONF_FIRE_EVENTS = "fire_events"
 
 # Configuration keys — devices provider
@@ -20,11 +19,13 @@ CONF_IGNORED_DEVICE_IDS = "ignored_device_ids"
 
 # Configuration keys — apps provider
 CONF_WATCH_STOPPED_ADDONS = "watch_stopped_addons"
+CONF_APPS_POLL_INTERVAL = "apps_poll_interval"
 
 # Defaults
 DEFAULT_GRACE_PERIOD = 30  # seconds
 DEFAULT_FIRE_EVENTS = True
 DEFAULT_WATCH_STOPPED_ADDONS = False
+DEFAULT_APPS_POLL_INTERVAL = 60  # seconds
 
 # Sources that are always excluded — system internals or user-ignored discoveries
 EXCLUDED_SOURCES = {"system", "ignore"}

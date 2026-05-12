@@ -100,19 +100,15 @@ class IntegrationsProvider(HealthProvider):
         self,
         hass: HomeAssistant,
         excluded_entry_ids: set[str] | None = None,
-        extra_entry_ids: set[str] | None = None,
         grace_period: int = DEFAULT_GRACE_PERIOD,
     ) -> None:
         """Initialize the integrations provider."""
         super().__init__(hass)
         self._excluded: set[str] = excluded_entry_ids or set()
-        self._extra: set[str] = extra_entry_ids or set()
         self._grace_period = grace_period
         self._on_change: Callable[[HealthItem], None] | None = None
         self._unsubscribe: Callable | None = None
-        # Pending timers: entry_id -> asyncio.TimerHandle
         self._pending_timers: dict[str, asyncio.TimerHandle] = {}
-        # Track previous healthy state to detect transitions
         self._previous_healthy: dict[str, bool] = {}
 
     @property
@@ -128,9 +124,6 @@ class IntegrationsProvider(HealthProvider):
         # Explicit opt-out always wins
         if entry.entry_id in self._excluded:
             return False
-        # Explicit opt-in always wins
-        if entry.entry_id in self._extra:
-            return True
         # Skip user-disabled entries — intentionally off, not a problem
         if getattr(entry, "disabled_by", None) is not None:
             return False

@@ -4,15 +4,7 @@
     "step": {
       "user": {
         "title": "Sentinel",
-        "description": "Monitor the health of your Home Assistant integrations and get notified when something breaks.",
-        "data": {
-          "grace_period": "Grace period (seconds)",
-          "fire_events": "Fire bus events on state changes"
-        },
-        "data_description": {
-          "grace_period": "How long an integration must remain in a failed state before being reported (0 = immediate).",
-          "fire_events": "Fire a `sentinel_item_changed` event on the HA event bus whenever an item changes state. Useful for automations."
-        }
+        "description": "Sentinel will start monitoring your integrations, devices and applications with sensible defaults. You can adjust all settings after setup."
       }
     },
     "abort": {
@@ -24,22 +16,22 @@
       "init": {
         "title": "Sentinel Options",
         "data": {
+          "fire_events": "Fire events on the HA bus",
           "grace_period": "Grace period (seconds)",
-          "fire_events": "Fire bus events on state changes",
           "excluded_entries": "Excluded integrations",
-          "extra_entries": "Extra integrations to monitor",
           "ignored_device_sources": "Ignored device sources",
           "ignored_device_ids": "Ignored devices",
-          "watch_stopped_addons": "Report stopped add-ons as warning"
+          "watch_stopped_addons": "Report stopped applications as warning",
+          "apps_poll_interval": "Application poll interval (seconds)"
         },
         "data_description": {
+          "fire_events": "Fire a `sentinel_item_changed` event on the HA event bus on every state change. Required for automations.",
           "grace_period": "How long an integration must remain in a failed state before being reported (0 = immediate).",
-          "fire_events": "Fire a `sentinel_item_changed` event on the HA event bus whenever an item changes state.",
           "excluded_entries": "Integrations to exclude from monitoring.",
-          "extra_entries": "Additional integrations to monitor (auto-discovered, system, etc.).",
-          "ignored_device_sources": "Integration sources to exclude from device monitoring (e.g. mobile_app, cast).",
+          "ignored_device_sources": "Device sources to exclude from monitoring (e.g. mobile_app, cast). Sources are listed from your current installation.",
           "ignored_device_ids": "Specific devices to exclude from monitoring.",
-          "watch_stopped_addons": "When enabled, add-ons that are stopped will be reported as warnings. By default, stopped add-ons are ignored (intentional stop)."
+          "watch_stopped_addons": "When enabled, stopped applications are reported as warnings. By default a stopped application is considered intentional.",
+          "apps_poll_interval": "How often Sentinel queries the Supervisor for application states (30–300 seconds, default 60)."
         }
       }
     }

@@ -67,7 +67,6 @@ After adding the integration, configure via **Settings â†’ Devices & Services â†
 | Grace period | 30s | How long an integration must stay failed before being reported (0 = immediate) |
 | Fire events | Yes | Fire `sentinel_item_changed` on the HA event bus on every state change |
 | Excluded integrations | None | Integrations to exclude from monitoring |
-| Extra integrations | None | Auto-discovered or system entries to add explicitly |
 
 ### Devices provider
 
@@ -83,6 +82,7 @@ After adding the integration, configure via **Settings â†’ Devices & Services â†
 | Option | Default | Description |
 |---|---|---|
 | Watch stopped add-ons | No | Report stopped add-ons as warnings (by default, stopped = intentional, ignored) |
+| Poll interval | 60s | How often Sentinel queries the Supervisor for add-on states (30â€“300s) |
 
 > **Note:** The Apps provider is only active on HA OS / Supervised installations. On other installation types it is silently skipped.
 

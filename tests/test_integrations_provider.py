@@ -19,6 +19,9 @@ from custom_components.sentinel.providers.integrations import (
     _is_healthy,
     _is_problem,
 )
+from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+from homeassistant.config_entries import ConfigEntryDisabler
 
 # ---------------------------------------------------------------------------
 # _is_healthy / _is_problem / _get_severity — pure functions
@@ -83,24 +86,15 @@ class TestStateClassification:
 # IntegrationsProvider._should_watch — filtering logic
 # ---------------------------------------------------------------------------
 
-class MockConfigEntry:
-    """Minimal mock of a HA ConfigEntry for filter tests."""
-
-    def __init__(self, entry_id="test_id", domain="netatmo", source="user"):
-        self.entry_id = entry_id
-        self.domain = domain
-        self.source = source
-
 
 class TestShouldWatch:
     """Test IntegrationsProvider._should_watch filtering."""
 
-    def _make_provider(self, excluded=None, extra=None):
+    def _make_provider(self, excluded=None):
         hass = MagicMock()
         return IntegrationsProvider(
             hass,
             excluded_entry_ids=set(excluded or []),
-            extra_entry_ids=set(extra or []),
         )
 
     def test_normal_user_integration_is_watched(self):
@@ -126,13 +120,11 @@ class TestShouldWatch:
         assert provider._should_watch(entry) is False
 
     def test_explicit_extra_entry_overrides_source_exclusion(self):
-        provider = self._make_provider(extra=["extra_id"])
-        entry = MockConfigEntry(entry_id="extra_id", domain="netatmo", source="system")
-        assert provider._should_watch(entry) is True
+        """Removed — extra_entries feature has been removed."""
 
-    def test_explicit_excluded_takes_priority_over_extra(self):
-        """An entry in both excluded and extra should be excluded."""
-        provider = self._make_provider(excluded=["conflict_id"], extra=["conflict_id"])
+    def test_explicit_excluded_takes_priority(self):
+        """Excluded entries are not watched."""
+        provider = self._make_provider(excluded=["conflict_id"])
         entry = MockConfigEntry(entry_id="conflict_id", domain="netatmo", source="user")
         assert provider._should_watch(entry) is False
 
@@ -143,7 +135,6 @@ class TestShouldWatch:
 
     def test_user_disabled_entry_is_not_watched(self):
         """User-disabled integrations (disabled_by=USER) should not be monitored."""
-        from homeassistant.config_entries import ConfigEntryDisabler
         provider = self._make_provider()
         entry = MockConfigEntry(domain="netatmo", source="user")
         entry.disabled_by = ConfigEntryDisabler.USER
