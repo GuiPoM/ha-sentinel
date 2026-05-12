@@ -18,7 +18,11 @@ from typing import TYPE_CHECKING
 from homeassistant.const import EVENT_HOMEASSISTANT_STARTED, STATE_UNAVAILABLE
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr, entity_registry as er
-from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.helpers.entity_registry import EVENT_ENTITY_REGISTRY_UPDATED
+from homeassistant.helpers.event import (
+    async_track_state_added_domain,
+    async_track_state_change_event,
+)
 from homeassistant.util import dt as dt_util
 
 from ..const import (
@@ -93,6 +97,8 @@ class DevicesProvider(HealthProvider):
         self._integration_problem_checker = integration_problem_checker
         self._on_change: Callable[[HealthItem], None] | None = None
         self._unsub_state: Callable | None = None
+        self._unsub_added: Callable | None = None
+        self._unsub_registry: Callable | None = None
         # Map entity_id -> device_id for quick lookup in state change handler
         self._entity_to_device: dict[str, str] = {}
         # Track previous healthy state per device
@@ -158,6 +164,18 @@ class DevicesProvider(HealthProvider):
                 self._on_state_changed,
             )
 
+        # Watch for new entities appearing after setup (new devices paired, entities re-enabled).
+        # watched_domains is derived from PHYSICAL_DOMAINS so it stays in sync automatically.
+        watched_domains = frozenset({*PHYSICAL_DOMAINS, "sensor", "binary_sensor"})
+        self._unsub_added = async_track_state_added_domain(
+            self.hass, watched_domains, self._on_entity_added
+        )
+
+        # Watch for entity registry removals to clean up _entity_to_device
+        self._unsub_registry = self.hass.bus.async_listen(
+            EVENT_ENTITY_REGISTRY_UPDATED, self._on_entity_registry_updated
+        )
+
         # Re-evaluate all devices once HA is fully started to clear
         # transient unavailable states captured during boot snapshot
         @callback
@@ -175,9 +193,12 @@ class DevicesProvider(HealthProvider):
 
     async def async_unload(self) -> None:
         """Unload provider and cancel subscriptions."""
-        if self._unsub_state:
-            self._unsub_state()
-            self._unsub_state = None
+        for unsub in (self._unsub_state, self._unsub_added, self._unsub_registry):
+            if unsub:
+                unsub()
+        self._unsub_state = None
+        self._unsub_added = None
+        self._unsub_registry = None
 
     async def async_reload_item(self, item_id: str) -> bool:
         """Devices cannot be reloaded — always returns False."""
@@ -193,6 +214,63 @@ class DevicesProvider(HealthProvider):
         if not device_id:
             return
         self._async_evaluate_device(device_id)
+
+    @callback
+    def _on_entity_added(self, event: Event) -> None:
+        """Handle a new entity appearing in the state machine.
+
+        Fired by async_track_state_added_domain when old_state is None.
+        Covers both newly paired devices and re-enabled entities.
+        """
+        entity_id = event.data.get("entity_id")
+        if not entity_id or entity_id in self._entity_to_device:
+            return
+        ent_reg = er.async_get(self.hass)
+        entity = ent_reg.async_get(entity_id)
+        if entity is None or not _is_eligible(entity):
+            return
+        if not self._should_watch_device(entity.device_id):
+            return
+        # Register the new entity
+        self._entity_to_device[entity_id] = entity.device_id
+        self._resubscribe_state()
+        _LOGGER.debug("DevicesProvider: tracking new entity %s (device %s)", entity_id, entity.device_id)
+        # Create a healthy HealthItem for the device if not already tracked
+        if entity.device_id not in self._items:
+            item = self._build_device_item_from_registry(entity.device_id)
+            if item is not None:
+                self._items[entity.device_id] = item
+                self._previous_healthy[entity.device_id] = True
+                if self._on_change:
+                    self._on_change(item)
+
+    @callback
+    def _on_entity_registry_updated(self, event: Event) -> None:
+        """Handle entity registry changes — clean up removed entities."""
+        action = event.data.get("action")
+        entity_id = event.data.get("entity_id")
+        if action == "remove" and entity_id in self._entity_to_device:
+            self._entity_to_device.pop(entity_id)
+            self._resubscribe_state()
+            _LOGGER.debug("DevicesProvider: removed entity %s from tracking", entity_id)
+
+    @callback
+    def _resubscribe_state(self) -> None:
+        """Re-subscribe to state changes for the current entity set.
+
+        Called whenever _entity_to_device changes (entity added or removed).
+        async_track_state_change_event uses a shared internal dict so this is O(n)
+        but does not create a new bus listener.
+        """
+        if self._unsub_state:
+            self._unsub_state()
+            self._unsub_state = None
+        if self._entity_to_device:
+            self._unsub_state = async_track_state_change_event(
+                self.hass,
+                list(self._entity_to_device.keys()),
+                self._on_state_changed,
+            )
 
     @callback
     def _async_evaluate_device(self, device_id: str) -> None:
