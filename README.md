@@ -7,6 +7,8 @@
 
 **Proactive health monitoring for Home Assistant — know when something breaks before you notice the lights aren't responding.**
 
+![Sentinel](icon.png)
+
 Sentinel watches your integrations, physical devices and add-ons in real time. No polling. No YAML. No manual entity wrangling. When something goes wrong, you know immediately.
 
 ---
