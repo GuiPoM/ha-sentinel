@@ -9,7 +9,7 @@
 
 ![Sentinel](icon.png)
 
-Sentinel watches your integrations, physical devices and add-ons in real time. No polling. No YAML. No manual entity wrangling. When something goes wrong, you know immediately.
+Sentinel watches your integrations, physical devices and applications \(add-ons\) in real time. No polling. No YAML. No manual entity wrangling. When something goes wrong, you know immediately.
 
 ---
 
@@ -34,7 +34,7 @@ Sentinel watches your integrations, physical devices and add-ons in real time. N
 - **Grace period** — configurable delay before flagging a problem, avoids false positives on startup
 - **Failure history** — `failure_count` tracks how many times each item has broken
 - **Event bus** — fires `sentinel_item_changed` for use in automations
-- **Reload action** — `sentinel.reload` to restart a broken integration or add-on
+- **Reload action** — `sentinel.reload` to restart a broken integration or application (add-on)
 - **Three providers** — integrations, devices, apps (add-ons)
 
 ---
