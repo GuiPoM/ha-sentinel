@@ -12,10 +12,10 @@ from custom_components.sentinel.const import (
     PROVIDER_INTEGRATIONS,
 )
 import pytest
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from homeassistant.config_entries import (
     SIGNAL_CONFIG_ENTRY_CHANGED,
-    ConfigEntry,
     ConfigEntryChange,
     ConfigEntryState,
 )
@@ -28,11 +28,9 @@ from homeassistant.helpers.dispatcher import async_dispatcher_send
 
 
 @pytest.fixture
-def sentinel_config_entry(hass: HomeAssistant) -> ConfigEntry:
+def sentinel_config_entry(hass: HomeAssistant) -> MockConfigEntry:
     """Create and register a Sentinel config entry."""
-    entry = ConfigEntry(
-        version=1,
-        minor_version=1,
+    entry = MockConfigEntry(
         domain=DOMAIN,
         title="Sentinel",
         data={},
@@ -40,7 +38,6 @@ def sentinel_config_entry(hass: HomeAssistant) -> ConfigEntry:
             CONF_GRACE_PERIOD: 0,  # no grace period for tests
             CONF_FIRE_EVENTS: True,
         },
-        source="user",
         entry_id="test_sentinel",
         unique_id=DOMAIN,
     )
@@ -48,7 +45,7 @@ def sentinel_config_entry(hass: HomeAssistant) -> ConfigEntry:
     return entry
 
 
-async def setup_sentinel(hass: HomeAssistant, entry: ConfigEntry) -> None:
+async def setup_sentinel(hass: HomeAssistant, entry: MockConfigEntry) -> None:
     """Set up Sentinel and wait for completion."""
     await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
@@ -61,7 +58,7 @@ async def setup_sentinel(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
 async def test_setup_creates_problems_sensor(
     hass: HomeAssistant,
-    sentinel_config_entry: ConfigEntry,
+    sentinel_config_entry: MockConfigEntry,
 ) -> None:
     """Test that setup creates the sentinel_problems sensor."""
     await setup_sentinel(hass, sentinel_config_entry)
@@ -73,7 +70,7 @@ async def test_setup_creates_problems_sensor(
 
 async def test_unload_removes_entities(
     hass: HomeAssistant,
-    sentinel_config_entry: ConfigEntry,
+    sentinel_config_entry: MockConfigEntry,
 ) -> None:
     """Test that unloading Sentinel removes its entities."""
     await setup_sentinel(hass, sentinel_config_entry)
@@ -93,7 +90,7 @@ async def test_unload_removes_entities(
 
 async def test_service_check_exists(
     hass: HomeAssistant,
-    sentinel_config_entry: ConfigEntry,
+    sentinel_config_entry: MockConfigEntry,
 ) -> None:
     """Test that sentinel.check service is registered."""
     await setup_sentinel(hass, sentinel_config_entry)
@@ -102,7 +99,7 @@ async def test_service_check_exists(
 
 async def test_service_purge_exists(
     hass: HomeAssistant,
-    sentinel_config_entry: ConfigEntry,
+    sentinel_config_entry: MockConfigEntry,
 ) -> None:
     """Test that sentinel.purge service is registered."""
     await setup_sentinel(hass, sentinel_config_entry)
@@ -111,7 +108,7 @@ async def test_service_purge_exists(
 
 async def test_service_reload_exists(
     hass: HomeAssistant,
-    sentinel_config_entry: ConfigEntry,
+    sentinel_config_entry: MockConfigEntry,
 ) -> None:
     """Test that sentinel.reload service is registered."""
     await setup_sentinel(hass, sentinel_config_entry)
@@ -120,7 +117,7 @@ async def test_service_reload_exists(
 
 async def test_unload_removes_services(
     hass: HomeAssistant,
-    sentinel_config_entry: ConfigEntry,
+    sentinel_config_entry: MockConfigEntry,
 ) -> None:
     """Test that services are removed on unload."""
     await setup_sentinel(hass, sentinel_config_entry)
@@ -135,7 +132,7 @@ async def test_unload_removes_services(
 
 async def test_service_check_fires_events_for_unhealthy(
     hass: HomeAssistant,
-    sentinel_config_entry: ConfigEntry,
+    sentinel_config_entry: MockConfigEntry,
 ) -> None:
     """Test that sentinel.check re-fires events for unhealthy items."""
     await setup_sentinel(hass, sentinel_config_entry)
@@ -161,7 +158,7 @@ async def test_service_check_fires_events_for_unhealthy(
 
 async def test_sentinel_fires_event_on_integration_problem(
     hass: HomeAssistant,
-    sentinel_config_entry: ConfigEntry,
+    sentinel_config_entry: MockConfigEntry,
 ) -> None:
     """Test that sentinel_item_changed event is fired when an integration fails."""
     await setup_sentinel(hass, sentinel_config_entry)
@@ -174,14 +171,11 @@ async def test_sentinel_fires_event_on_integration_problem(
     hass.bus.async_listen(EVENT_ITEM_CHANGED, _capture)
 
     # Register a user integration entry
-    fake_entry = ConfigEntry(
-        version=1,
-        minor_version=1,
+    fake_entry = MockConfigEntry(
         domain="netatmo",
         title="Netatmo",
         data={},
         options={},
-        source="user",
         entry_id="fake_netatmo",
         unique_id="netatmo_test",
     )
@@ -209,18 +203,15 @@ async def test_sentinel_fires_event_on_integration_problem(
 
 async def test_binary_sensor_has_provider_attribute(
     hass: HomeAssistant,
-    sentinel_config_entry: ConfigEntry,
+    sentinel_config_entry: MockConfigEntry,
 ) -> None:
     """Test that created binary_sensor entities have the provider attribute."""
     # Add a watched integration so at least one binary_sensor is created
-    fake_entry = ConfigEntry(
-        version=1,
-        minor_version=1,
+    fake_entry = MockConfigEntry(
         domain="netatmo",
         title="Netatmo",
         data={},
         options={},
-        source="user",
         entry_id="fake_netatmo_2",
         unique_id="netatmo_test_2",
     )

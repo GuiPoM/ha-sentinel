@@ -1,0 +1,5 @@
+# Ruff overrides for test files
+# Tests are allowed more flexibility with imports and style
+
+[lint]
+extend-ignore = ["I001", "PLC0415", "PLW0108", "RUF059"]
