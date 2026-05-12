@@ -218,11 +218,11 @@ class TestAvailable:
     def test_available_returns_false_when_not_hassio(self):
         hass = MagicMock()
         provider = AppsProvider(hass)
-        with patch("custom_components.sentinel.providers.apps._is_hassio", return_value=False):
+        with patch("custom_components.sentinel.providers.apps.is_hassio", return_value=False):
             assert provider.available is False
 
     def test_available_returns_true_when_hassio(self):
         hass = MagicMock()
         provider = AppsProvider(hass)
-        with patch("custom_components.sentinel.providers.apps._is_hassio", return_value=True):
+        with patch("custom_components.sentinel.providers.apps.is_hassio", return_value=True):
             assert provider.available is True
