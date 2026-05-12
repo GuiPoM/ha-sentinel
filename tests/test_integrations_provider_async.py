@@ -21,10 +21,12 @@ def _make_entry(
     source="user",
     state_value="loaded",
     reason=None,
-    recoverable=True,
 ):
-    """Create a minimal mock ConfigEntry."""
+    """Create a minimal mock ConfigEntry with a real ConfigEntryState.
 
+    entry.state is the real enum so _entry_state_str() lookup works correctly.
+    entry.state.recoverable is the real computed property from the enum.
+    """
     state_map = {
         "loaded": ConfigEntryState.LOADED,
         "setup_error": ConfigEntryState.SETUP_ERROR,
@@ -35,13 +37,12 @@ def _make_entry(
         "setup_in_progress": ConfigEntryState.SETUP_IN_PROGRESS,
         "unload_in_progress": ConfigEntryState.UNLOAD_IN_PROGRESS,
     }
-    entry = MagicMock()
+    entry = MagicMock(spec=["entry_id", "title", "domain", "source", "state", "reason", "disabled_by"])
     entry.entry_id = entry_id
     entry.title = title
     entry.domain = domain
     entry.source = source
     entry.state = state_map.get(state_value, ConfigEntryState.LOADED)
-    entry.state.recoverable = recoverable
     entry.reason = reason
     entry.disabled_by = None
     return entry
