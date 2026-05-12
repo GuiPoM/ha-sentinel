@@ -130,7 +130,7 @@ class IntegrationsProvider(HealthProvider):
         if entry.entry_id in self._extra:
             return True
         # Skip user-disabled entries — intentionally off, not a problem
-        if entry.disabled_by is not None:
+        if getattr(entry, "disabled_by", None) is not None:
             return False
         # Skip system internals and user-ignored discoveries
         if entry.source in EXCLUDED_SOURCES:
