@@ -93,13 +93,27 @@ class TestIsEligible:
         assert _is_eligible(entity) is False
 
     def test_original_device_class_takes_priority_over_device_class(self):
-        """original_device_class is checked first."""
+        """original_device_class is checked before device_class.
+
+        Set original_device_class to a vital class and device_class to a
+        non-vital class. The entity must be eligible — proving that
+        original_device_class wins when both are present.
+        """
         entity = MockEntity(
             domain="sensor",
-            original_device_class=SensorDeviceClass.TEMPERATURE,
-            device_class=None,
+            original_device_class=SensorDeviceClass.TEMPERATURE,  # vital
+            device_class=SensorDeviceClass.BATTERY,               # not vital
         )
         assert _is_eligible(entity) is True
+
+    def test_non_vital_original_device_class_is_not_eligible_even_if_device_class_is_vital(self):
+        """If original_device_class is non-vital, device_class is not consulted."""
+        entity = MockEntity(
+            domain="sensor",
+            original_device_class=SensorDeviceClass.BATTERY,      # not vital
+            device_class=SensorDeviceClass.TEMPERATURE,           # vital — but ignored
+        )
+        assert _is_eligible(entity) is False
 
 
 # ---------------------------------------------------------------------------

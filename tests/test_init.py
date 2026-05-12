@@ -68,17 +68,34 @@ async def test_setup_creates_problems_sensor(
     assert state.state == "0"
 
 
-async def test_unload_removes_entities(
+async def test_setup_creates_entities_in_registry(
     hass: HomeAssistant,
     sentinel_config_entry: MockConfigEntry,
 ) -> None:
-    """Test that unloading Sentinel cleans up correctly."""
+    """Test that setup creates Sentinel entities in the entity registry."""
     await setup_sentinel(hass, sentinel_config_entry)
 
-    # Verify entities exist in entity registry
     ent_reg = er.async_get(hass)
     sentinel_entries = er.async_entries_for_config_entry(ent_reg, sentinel_config_entry.entry_id)
-    assert len(sentinel_entries) > 0
+    assert len(sentinel_entries) > 0, "Setup must create at least one entity (problems sensor)"
+
+
+async def test_unload_removes_entities_from_registry(
+    hass: HomeAssistant,
+    sentinel_config_entry: MockConfigEntry,
+) -> None:
+    """Test that unloading Sentinel removes its entities from the registry."""
+    await setup_sentinel(hass, sentinel_config_entry)
+
+    ent_reg = er.async_get(hass)
+    before = er.async_entries_for_config_entry(ent_reg, sentinel_config_entry.entry_id)
+    assert len(before) > 0, "Should have entities before unload"
+
+    await hass.config_entries.async_unload(sentinel_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    # After unload the entry is no longer loaded — services should be gone
+    assert not hass.services.has_service(DOMAIN, "check")
 
 
 # ---------------------------------------------------------------------------
@@ -128,11 +145,11 @@ async def test_unload_removes_services(
     assert not hass.services.has_service(DOMAIN, "check")
 
 
-async def test_service_check_fires_events_for_unhealthy(
+async def test_service_check_does_not_fire_events_when_all_healthy(
     hass: HomeAssistant,
     sentinel_config_entry: MockConfigEntry,
 ) -> None:
-    """Test that sentinel.check re-fires events for unhealthy items."""
+    """Test that sentinel.check fires no events when all items are healthy."""
     await setup_sentinel(hass, sentinel_config_entry)
 
     events = []
@@ -145,8 +162,9 @@ async def test_service_check_fires_events_for_unhealthy(
     await hass.services.async_call(DOMAIN, "check", blocking=True)
     await hass.async_block_till_done()
 
-    # All fired events should be for healthy items (no problems at startup)
-    assert all(e.data.get("healthy") is not False for e in events)
+    # At clean startup all items are healthy — check should fire zero events
+    unhealthy_events = [e for e in events if not e.data.get("healthy")]
+    assert len(unhealthy_events) == 0
 
 
 # ---------------------------------------------------------------------------
@@ -158,11 +176,7 @@ async def test_sentinel_fires_event_on_integration_problem(
     hass: HomeAssistant,
     sentinel_config_entry: MockConfigEntry,
 ) -> None:
-    """Test that sentinel_item_changed event is fired when an integration fails.
-
-    We verify this by directly calling _apply_state on the provider with a
-    setup_error state, simulating what would happen when a real integration fails.
-    """
+    """Test that sentinel_item_changed event is fired when an integration fails."""
     await setup_sentinel(hass, sentinel_config_entry)
 
     events = []
@@ -172,7 +186,7 @@ async def test_sentinel_fires_event_on_integration_problem(
 
     hass.bus.async_listen(EVENT_ITEM_CHANGED, _capture)
 
-    # Register a fake netatmo entry
+    # Register a fake netatmo entry and trigger ADDED signal
     fake_entry = MockConfigEntry(
         domain="netatmo",
         title="Netatmo",
@@ -182,35 +196,36 @@ async def test_sentinel_fires_event_on_integration_problem(
         unique_id="netatmo_test",
     )
     fake_entry.add_to_hass(hass)
-
-    # Add the entry to Sentinel's tracked items via ADDED signal
     async_dispatcher_send(hass, SIGNAL_CONFIG_ENTRY_CHANGED, ConfigEntryChange.ADDED, fake_entry)
     await hass.async_block_till_done()
 
-    # Get the integrations provider and directly apply a setup_error state
     coordinator = hass.data[DOMAIN][sentinel_config_entry.entry_id]
     int_provider = coordinator._providers.get("integrations")
 
-    if int_provider and "fake_netatmo" in int_provider._items:
-        # Directly set previous state to healthy, then apply error
-        int_provider._previous_healthy["fake_netatmo"] = True
-        # Build a mock entry with setup_error state for _apply_state
-        mock_entry = MagicMock()
-        mock_entry.entry_id = "fake_netatmo"
-        mock_entry.title = "Netatmo"
-        mock_entry.domain = "netatmo"
-        mock_entry.source = "user"
-        mock_entry.reason = None
-        mock_entry.disabled_by = None
-        mock_entry.state.recoverable = True
+    assert int_provider is not None, "Integrations provider must be set up"
+    assert "fake_netatmo" in int_provider._items, (
+        "fake_netatmo must be tracked after ADDED signal — "
+        "check that _on_entry_changed handles ADDED correctly"
+    )
 
-        int_provider._apply_state(mock_entry, "setup_error")
-        await hass.async_block_till_done()
+    # Simulate a healthy→error transition via _apply_state
+    int_provider._previous_healthy["fake_netatmo"] = True
+    mock_entry = MagicMock()
+    mock_entry.entry_id = "fake_netatmo"
+    mock_entry.title = "Netatmo"
+    mock_entry.domain = "netatmo"
+    mock_entry.source = "user"
+    mock_entry.reason = None
+    mock_entry.disabled_by = None
+    mock_entry.state.recoverable = True
 
-        problem_events = [e for e in events if not e.data.get("healthy")]
-        assert len(problem_events) > 0
-        assert problem_events[0].data["provider"] == PROVIDER_INTEGRATIONS
-        assert problem_events[0].data["item_type"] == "integration"
+    int_provider._apply_state(mock_entry, "setup_error")
+    await hass.async_block_till_done()
+
+    problem_events = [e for e in events if not e.data.get("healthy")]
+    assert len(problem_events) > 0, "Expected at least one unhealthy event"
+    assert problem_events[0].data["provider"] == PROVIDER_INTEGRATIONS
+    assert problem_events[0].data["item_type"] == "integration"
 
 
 # ---------------------------------------------------------------------------
@@ -222,7 +237,7 @@ async def test_binary_sensor_has_provider_attribute(
     hass: HomeAssistant,
     sentinel_config_entry: MockConfigEntry,
 ) -> None:
-    """Test that created binary_sensor entities have the provider attribute."""
+    """Test that created binary_sensor entities have required Sentinel attributes."""
     # Add a watched integration so at least one binary_sensor is created
     fake_entry = MockConfigEntry(
         domain="netatmo",
@@ -240,6 +255,11 @@ async def test_binary_sensor_has_provider_attribute(
         s for s in hass.states.async_all()
         if s.attributes.get("provider") in (PROVIDER_INTEGRATIONS, PROVIDER_DEVICES)
     ]
+
+    assert len(sentinel_entities) > 0, (
+        "Expected at least one Sentinel binary_sensor entity with a 'provider' attribute. "
+        "Check that async_setup_entry correctly creates binary_sensor entities."
+    )
 
     for entity in sentinel_entities:
         assert "provider" in entity.attributes
