@@ -28,14 +28,14 @@ Sentinel watches your integrations, physical devices and applications \(add-ons\
 
 - **Real-time integration monitoring** — listens to HA's internal dispatcher, zero polling
 - **Physical device monitoring** — detects unavailable entities (Hue, Z-Wave, Zigbee, Matter…)
-- **Add-on monitoring** — queries the Supervisor API directly (real-time, no cache) for crashed or errored add-ons (HA OS only)
+- **Application (add-on) monitoring** — queries the Supervisor API directly (real-time, no cache) for crashed or errored applications (HA OS only)
 - **Smart noise reduction** — if an integration fails, its devices are suppressed to avoid alert storms
 - **Severity levels** — `error` (setup_error, migration_error) vs `warning` (setup_retry)
 - **Grace period** — configurable delay before flagging a problem, avoids false positives on startup
 - **Failure history** — `failure_count` tracks how many times each item has broken
 - **Event bus** — fires `sentinel_item_changed` for use in automations
 - **Reload action** — `sentinel.reload` to restart a broken integration or application (add-on)
-- **Three providers** — integrations, devices, apps (add-ons)
+- **Three providers** — integrations, devices, applications (add-ons)
 
 ---
 
@@ -115,15 +115,15 @@ One `binary_sensor.sentinel_*` per monitored item:
 | Attribute | Description |
 |---|---|
 | `provider` | `integrations`, `devices`, or `apps` |
-| `domain` | Integration domain, device source, or `hassio` for add-ons |
+| `domain` | Integration domain, device source, or `hassio` for applications |
 | `state` | Raw state (e.g. `setup_error`, `unavailable`, `error`) |
 | `severity` | `ok`, `warning` or `error` |
 | `reason` | Error message if available |
 | `since` | ISO timestamp of last state change |
 | `failure_count` | Number of times this item has failed |
-| `can_reload` | Whether reload is supported (integrations + add-ons) |
+| `can_reload` | Whether reload is supported (integrations + applications) |
 | `device_url` | Direct link to the HA device page (devices only) |
-| `slug` | Add-on slug (apps only) |
+| `slug` | Application slug (apps only) |
 
 ### Sensor
 
@@ -178,7 +178,7 @@ automation:
 
 ### `sentinel.reload`
 
-Reload a broken integration or restart a crashed add-on.
+Reload a broken integration or restart a crashed application (add-on).
 
 ```yaml
 action: sentinel.reload
@@ -227,7 +227,7 @@ type: custom:ha-sentinel-card
 # Devices card
 type: custom:ha-sentinel-devices-card
 
-# Add-ons card (HA OS only)
+# Applications (add-ons) card (HA OS only)
 type: custom:ha-sentinel-apps-card
 ```
 
@@ -244,7 +244,7 @@ type: custom:ha-sentinel-apps-card
 | `migration_error` | `error` | Migration failed |
 | `failed_unload` | `error` | Could not unload cleanly |
 | `unavailable` | `error` | Device entity unavailable |
-| `unknown` | `warning` | Add-on in unknown state |
+| `unknown` | `warning` | Application in unknown state |
 
 *`stopped` only reported as warning if `watch_stopped_addons` is enabled.
 **`not_loaded` without `disabled_by` — integration is not intentionally disabled.
