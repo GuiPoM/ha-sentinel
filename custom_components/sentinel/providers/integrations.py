@@ -65,7 +65,12 @@ def _entry_state_str(entry: ConfigEntry) -> str:
 
 
 def _is_healthy(state_str: str) -> bool:
-    return state_str in HEALTHY_STATES
+    """Return True if the state represents a healthy or intentionally inactive item.
+
+    not_loaded is considered healthy — the integration is intentionally disabled
+    or not yet loaded, which is not an actionable problem.
+    """
+    return state_str in HEALTHY_STATES or state_str in INACTIVE_STATES
 
 
 def _is_problem(state_str: str) -> bool:
