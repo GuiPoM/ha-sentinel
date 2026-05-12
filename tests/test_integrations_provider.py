@@ -139,3 +139,18 @@ class TestShouldWatch:
         provider = self._make_provider()
         entry = MockConfigEntry(domain=DOMAIN, source="user")
         assert provider._should_watch(entry) is False
+
+    def test_user_disabled_entry_is_not_watched(self):
+        """User-disabled integrations (disabled_by=USER) should not be monitored."""
+        from homeassistant.config_entries import ConfigEntryDisabler
+        provider = self._make_provider()
+        entry = MockConfigEntry(domain="netatmo", source="user")
+        entry.disabled_by = ConfigEntryDisabler.USER
+        assert provider._should_watch(entry) is False
+
+    def test_not_disabled_entry_is_watched(self):
+        """Entry with disabled_by=None should be monitored normally."""
+        provider = self._make_provider()
+        entry = MockConfigEntry(domain="netatmo", source="user")
+        entry.disabled_by = None
+        assert provider._should_watch(entry) is True

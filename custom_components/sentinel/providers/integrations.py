@@ -65,12 +65,8 @@ def _entry_state_str(entry: ConfigEntry) -> str:
 
 
 def _is_healthy(state_str: str) -> bool:
-    """Return True if the state represents a healthy or intentionally inactive item.
-
-    not_loaded is considered healthy — the integration is intentionally disabled
-    or not yet loaded, which is not an actionable problem.
-    """
-    return state_str in HEALTHY_STATES or state_str in INACTIVE_STATES
+    """Return True if the state represents a running healthy item."""
+    return state_str in HEALTHY_STATES
 
 
 def _is_problem(state_str: str) -> bool:
@@ -133,6 +129,9 @@ class IntegrationsProvider(HealthProvider):
         # Explicit opt-in always wins
         if entry.entry_id in self._extra:
             return True
+        # Skip user-disabled entries — intentionally off, not a problem
+        if entry.disabled_by is not None:
+            return False
         # Skip system internals and user-ignored discoveries
         if entry.source in EXCLUDED_SOURCES:
             return False
