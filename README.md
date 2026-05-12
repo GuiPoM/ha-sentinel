@@ -139,8 +139,8 @@ When an item changes health state, Sentinel fires `sentinel_item_changed`:
 event_type: sentinel_item_changed
 data:
   item_id: "abc123..."
-  provider: "integrations"        # "integrations", "devices", or "apps"
-  item_type: "integration"        # "integration", "device", or "addon"
+  provider: "integrations"        # "integrations", "devices", or "apps" (applications)
+  item_type: "integration"        # "integration", "device", or "addon" (application)
   name: "Netatmo"
   domain: "netatmo"
   source: "NETATMO"
