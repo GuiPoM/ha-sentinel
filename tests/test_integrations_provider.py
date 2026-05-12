@@ -67,8 +67,9 @@ class TestStateClassification:
             assert _get_severity(state) == "ok", f"{state} should be ok"
 
     def test_severity_inactive_states(self):
+        """not_loaded is a warning — integration should be running but isn't."""
         for state in INACTIVE_STATES:
-            assert _get_severity(state) == "ok", f"{state} should be ok"
+            assert _get_severity(state) == "warning", f"{state} should be warning"
 
     def test_severity_transient_states(self):
         for state in TRANSIENT_STATES:

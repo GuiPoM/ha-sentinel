@@ -85,8 +85,10 @@ def _get_severity(state_str: str) -> str:
         return "warning"
     if state_str in HEALTHY_STATES:
         return "ok"
-    if state_str in TRANSIENT_STATES or state_str in INACTIVE_STATES:
+    if state_str in TRANSIENT_STATES:
         return "ok"
+    if state_str in INACTIVE_STATES:
+        return "warning"  # not_loaded without disabled_by — integration should be running
     # Unknown future state → warning
     return "warning"
 
