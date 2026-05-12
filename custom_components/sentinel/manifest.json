@@ -1,10 +1,10 @@
 {
   "domain": "sentinel",
   "name": "Sentinel",
+  "after_dependencies": ["hassio"],
   "codeowners": ["@GuiPoM"],
   "config_flow": true,
   "dependencies": [],
-  "after_dependencies": ["hassio"],
   "documentation": "https://github.com/GuiPoM/ha-sentinel",
   "integration_type": "service",
   "iot_class": "local_push",
