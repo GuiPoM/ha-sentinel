@@ -7,7 +7,7 @@
 
 **Proactive health monitoring for Home Assistant — know when something breaks before you notice the lights aren't responding.**
 
-Sentinel watches your integrations and physical devices in real time. No polling. No YAML. No manual entity wrangling. When something goes wrong, you know immediately.
+Sentinel watches your integrations, physical devices and add-ons in real time. No polling. No YAML. No manual entity wrangling. When something goes wrong, you know immediately.
 
 ---
 
@@ -18,20 +18,22 @@ Sentinel watches your integrations and physical devices in real time. No polling
 | You notice Netatmo stopped reporting — an hour ago | Push notification the moment it fails |
 | You check 40 Lovelace cards to find the broken one | One card showing exactly what's down |
 | You wonder if the Z-Wave lock is really unavailable | Sentinel tells you — and since when |
+| Mosquitto crashed silently and MQTT is down | Sentinel alerts you immediately |
 
 ---
 
 ## Features
 
 - **Real-time integration monitoring** — listens to HA's internal dispatcher, zero polling
-- **Physical device monitoring** — detects unavailable entities and silent devices (no update >24h)
+- **Physical device monitoring** — detects unavailable entities (Hue, Z-Wave, Zigbee, Matter…)
+- **Add-on monitoring** — polls HA OS Supervisor for crashed or errored add-ons (HA OS only)
 - **Smart noise reduction** — if an integration fails, its devices are suppressed to avoid alert storms
 - **Severity levels** — `error` (setup_error, migration_error) vs `warning` (setup_retry)
 - **Grace period** — configurable delay before flagging a problem, avoids false positives on startup
 - **Failure history** — `failure_count` tracks how many times each item has broken
 - **Event bus** — fires `sentinel_item_changed` for use in automations
-- **Reload action** — `sentinel.reload` to restart a broken integration from an automation
-- **Extensible** — provider architecture ready for future monitoring types
+- **Reload action** — `sentinel.reload` to restart a broken integration or add-on
+- **Three providers** — integrations, devices, apps (add-ons)
 
 ---
 
@@ -67,6 +69,15 @@ After adding the integration, configure via **Settings → Devices & Services �
 | Excluded integrations | None | Integrations to exclude from monitoring |
 | Extra integrations | None | Auto-discovered or system entries to add explicitly |
 
+### Devices provider
+
+| Option | Default | Description |
+|---|---|---|
+| Ignored device sources | None | Integration sources to ignore (e.g. `mobile_app`, `cast`) |
+| Ignored devices | None | Specific devices to exclude from monitoring |
+
+> **How device health is determined:** a device is unhealthy when at least one of its monitored entities becomes `unavailable`. This is the only reliable signal that a device has lost connectivity with its hub (Hue, Z-Wave JS, Zigbee2MQTT, Matter…). Event-based sensors (motion, door, smoke, water leak…) only report on state change — this is normal behavior, not a problem.
+
 ### Apps provider (HA OS only)
 
 | Option | Default | Description |
@@ -84,11 +95,8 @@ After adding the integration, configure via **Settings → Devices & Services �
 | `error` | `error` | Docker failure on start/stop |
 | `unknown` | `warning` | Initial or post-uninstall state |
 | `startup` | ignored | Transient — add-on is starting up |
-|---|---|---|
-| Ignored device sources | None | Integration sources to ignore (e.g. `mobile_app`, `cast`) |
-| Ignored devices | None | Specific devices to exclude from monitoring |
 
-> **How device health is determined:** a device is unhealthy when at least one of its monitored entities becomes `unavailable`. This is the only reliable signal that a device has lost connectivity with its hub (Hue, Z-Wave JS, Zigbee2MQTT, Matter…). There is no "silence" detection — event-based sensors (motion, door, smoke, water leak…) only report on state change, which is normal behavior.
+---
 
 ### What gets monitored by default
 
@@ -97,6 +105,8 @@ After adding the integration, configure via **Settings → Devices & Services �
 - System domains (`homeassistant`, `hacs`, `sentinel`)
 
 **Devices** — entities in physical domains (`light`, `switch`, `lock`, `climate`, `cover`, `valve`…) and vital device classes (`temperature`, `humidity`, `motion`, `smoke`, `door`, `window`, `co`, `co2`…)
+
+**Add-ons** — all installed add-ons on HA OS (state `error` or `unknown`)
 
 ---
 
@@ -113,15 +123,16 @@ One `binary_sensor.sentinel_*` per monitored item:
 
 | Attribute | Description |
 |---|---|
-| `provider` | `integrations` or `devices` |
-| `domain` | Integration domain or device source |
-| `state` | Raw state (e.g. `setup_error`, `unavailable`) |
+| `provider` | `integrations`, `devices`, or `apps` |
+| `domain` | Integration domain, device source, or `hassio` for add-ons |
+| `state` | Raw state (e.g. `setup_error`, `unavailable`, `error`) |
 | `severity` | `ok`, `warning` or `error` |
 | `reason` | Error message if available |
 | `since` | ISO timestamp of last state change |
 | `failure_count` | Number of times this item has failed |
-| `can_reload` | Whether reload is supported (integrations only) |
+| `can_reload` | Whether reload is supported (integrations + add-ons) |
 | `device_url` | Direct link to the HA device page (devices only) |
+| `slug` | Add-on slug (apps only) |
 
 ### Sensor
 
@@ -137,8 +148,8 @@ When an item changes health state, Sentinel fires `sentinel_item_changed`:
 event_type: sentinel_item_changed
 data:
   item_id: "abc123..."
-  provider: "integrations"        # or "devices"
-  item_type: "integration"        # or "device"
+  provider: "integrations"        # "integrations", "devices", or "apps"
+  item_type: "integration"        # "integration", "device", or "addon"
   name: "Netatmo"
   domain: "netatmo"
   source: "NETATMO"
@@ -176,12 +187,12 @@ automation:
 
 ### `sentinel.reload`
 
-Reload a broken integration.
+Reload a broken integration or restart a crashed add-on.
 
 ```yaml
 action: sentinel.reload
 data:
-  item_id: "<config_entry_id>"
+  item_id: "<config_entry_id or addon_slug>"
 ```
 
 ### `sentinel.reset_failure_count`
@@ -232,12 +243,15 @@ type: custom:ha-sentinel-devices-card
 
 | State | Severity | Meaning |
 |---|---|---|
-| `loaded` / `ok` | `ok` | Running normally |
-| `setup_retry` | `warning` | Retrying setup — may recover |
-| `setup_error` | `error` | Setup failed — needs attention |
+| `loaded` / `started` / `ok` | `ok` | Running normally |
+| `setup_retry` / `stopped`* | `warning` | May recover on its own |
+| `setup_error` / `error` | `error` | Needs attention |
 | `migration_error` | `error` | Migration failed |
 | `failed_unload` | `error` | Could not unload cleanly |
-| `unavailable` | `error` | Device entity unavailable — device has lost connectivity with its hub |
+| `unavailable` | `error` | Device entity unavailable |
+| `unknown` | `warning` | Add-on in unknown state |
+
+*`stopped` only reported as warning if `watch_stopped_addons` is enabled.
 
 ---
 
