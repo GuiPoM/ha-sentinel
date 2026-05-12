@@ -3,7 +3,7 @@
 Monitors Home Assistant OS add-ons via the Supervisor API.
 Only active on HA OS / Supervised installations.
 
-Add-on states (from Supervisor AppState):
+Add-on states (from Supervisor AddonState):
   - started  → ok
   - startup  → transient, ignored
   - stopped  → ignored by default; warning if watch_stopped_addons=True
@@ -19,6 +19,7 @@ from typing import Any
 
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.helpers.hassio import is_hassio
 from homeassistant.util import dt as dt_util
 
 from ..const import PROVIDER_APPS
@@ -29,7 +30,7 @@ _LOGGER = logging.getLogger(__name__)
 # How often to poll the Supervisor for add-on states
 _POLL_INTERVAL = timedelta(seconds=60)
 
-# Raw Supervisor AppState values
+# Raw Supervisor AddonState values
 _STATE_STARTED = "started"
 _STATE_STARTUP = "startup"
 _STATE_STOPPED = "stopped"
@@ -43,28 +44,21 @@ _WARNING_STATES = {_STATE_UNKNOWN}
 _TRANSIENT_STATES = {_STATE_STARTUP}
 
 
-def _is_hassio(hass: HomeAssistant) -> bool:
-    """Return True if running on HA OS / Supervised (Supervisor available)."""
-    try:
-        from homeassistant.components.hassio import is_hassio  # noqa: PLC0415
-        return is_hassio(hass)
-    except ImportError:
-        return False
-
-
 def _get_addons(hass: HomeAssistant) -> list[dict[str, Any]]:
-    """Return the list of installed add-ons from the hassio coordinator cache."""
+    """Return the list of installed add-ons from the hassio coordinator cache.
+
+    Uses get_addons_list which returns list[dict] directly — lighter than
+    get_addons_info and always available when the hassio coordinator is loaded.
+    """
     try:
-        from homeassistant.components.hassio import get_addons_info  # noqa: PLC0415
-        info = get_addons_info(hass)
-        if info is None:
+        from homeassistant.components.hassio import get_addons_list  # noqa: PLC0415
+        addons = get_addons_list(hass)
+        if addons is None:
+            _LOGGER.debug("Sentinel AppsProvider: get_addons_list returned None — coordinator not ready yet")
             return []
-        # get_addons_info returns a dict[slug, AddonInfo] or list depending on HA version
-        if isinstance(info, dict):
-            return list(info.values())
-        return list(info) if info else []
-    except (ImportError, Exception) as err:
-        _LOGGER.debug("Could not get addons info: %s", err)
+        return addons
+    except Exception as err:
+        _LOGGER.debug("Sentinel AppsProvider: could not get addons list: %s", err)
         return []
 
 
@@ -83,8 +77,8 @@ async def _restart_addon(hass: HomeAssistant, slug: str) -> bool:
 class AppsProvider(HealthProvider):
     """Health provider for Home Assistant OS add-ons.
 
-    Polls the Supervisor API every 60s to detect add-ons that are in error
-    or unknown state. Only active on HA OS / Supervised installations.
+    Polls get_addons_list() every 60s to detect add-ons in error or unknown state.
+    Only active on HA OS / Supervised installations.
     """
 
     def __init__(
@@ -110,7 +104,7 @@ class AppsProvider(HealthProvider):
     @property
     def available(self) -> bool:
         """Only available when Supervisor (hassio) is loaded."""
-        return _is_hassio(self.hass)
+        return is_hassio(self.hass)
 
     async def async_setup(self, on_change_callback: Callable[[HealthItem], None]) -> None:
         """Set up the apps provider."""
@@ -176,22 +170,20 @@ class AppsProvider(HealthProvider):
                 self._previous_healthy.pop(slug, None)
 
     def _get_slug(self, addon: Any) -> str | None:
-        """Extract the slug from an addon info object or dict."""
-        if isinstance(addon, dict):
-            return addon.get("slug")
-        return getattr(addon, "slug", None)
+        """Extract the slug from an addon dict."""
+        return addon.get("slug") if isinstance(addon, dict) else getattr(addon, "slug", None)
 
     def _get_state(self, addon: Any) -> str:
-        """Extract the raw state string from an addon info object or dict."""
+        """Extract the raw state string from an addon dict."""
         if isinstance(addon, dict):
             state = addon.get("state", _STATE_UNKNOWN)
         else:
             state = getattr(addon, "state", _STATE_UNKNOWN)
-        # Normalize — may be an enum value
+        # Normalize — may be an AddonState enum value
         return str(state.value if hasattr(state, "value") else state)
 
     def _get_name(self, addon: Any) -> str:
-        """Extract the display name from an addon info object or dict."""
+        """Extract the display name from an addon dict."""
         if isinstance(addon, dict):
             return addon.get("name") or addon.get("slug", "unknown")
         return getattr(addon, "name", None) or getattr(addon, "slug", "unknown")
