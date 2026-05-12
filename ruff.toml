@@ -68,4 +68,4 @@ combine-as-imports = true
 "tests/test_integrations_provider.py" = ["PLC0415", "PLW0108", "RUF059", "I001"]
 "tests/test_config_flow.py" = ["PLC0415", "PLW0108", "RUF059", "I001"]
 "tests/test_integrations_provider_async.py" = ["PLC0415", "PLW0108", "RUF059", "I001"]
-"tests/test_devices_provider_async.py" = ["PLC0415", "PLW0108", "RUF059", "I001"]
+"tests/test_init.py" = ["PLC0415", "PLW0108", "RUF059", "I001"]
