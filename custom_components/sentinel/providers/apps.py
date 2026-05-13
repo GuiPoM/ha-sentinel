@@ -27,15 +27,20 @@ from datetime import timedelta
 import logging
 from typing import Any
 
-from homeassistant.components.hassio.const import (
-    DATA_ADDONS_LIST,
-    EVENT_SUPERVISOR_EVENT,
-)
+from homeassistant.components.hassio.const import EVENT_SUPERVISOR_EVENT
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.hassio import is_hassio
 from homeassistant.util import dt as dt_util
+
+# DATA_ADDONS_LIST is a HassKey — import it defensively since older HA versions
+# may not export it from hassio.const. Fall back to the raw string key.
+try:
+    from homeassistant.components.hassio.const import DATA_ADDONS_LIST  # type: ignore[attr-defined]  # noqa: PLC0415
+    _ADDONS_LIST_KEY: object = DATA_ADDONS_LIST
+except ImportError:
+    _ADDONS_LIST_KEY = "hassio_addons_list"
 
 from ..const import DEFAULT_APPS_POLL_INTERVAL, PROVIDER_APPS
 from . import HealthItem, HealthProvider
@@ -66,7 +71,7 @@ def _get_addons_from_cache(hass: HomeAssistant) -> list[Any]:
     and kept fresh via EVENT_SUPERVISOR_EVENT push events from the Supervisor.
     This reflects the real container state without any additional API calls.
     """
-    return hass.data.get(DATA_ADDONS_LIST) or []
+    return hass.data.get(_ADDONS_LIST_KEY) or []
 
 
 async def _restart_addon(hass: HomeAssistant, slug: str) -> bool:
