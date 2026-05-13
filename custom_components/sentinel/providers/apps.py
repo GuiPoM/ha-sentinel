@@ -45,15 +45,31 @@ _TRANSIENT_STATES = {_STATE_STARTUP}
 
 
 async def _get_addons(hass: HomeAssistant) -> list[Any]:
-    """Return the list of installed add-ons directly from the Supervisor.
+    """Return the list of installed add-ons with fresh real-time state.
 
-    Uses get_supervisor_client().addons.list() for fresh real-time data —
-    never stale, always reflects the current Supervisor state.
+    Uses addons.list() to get slugs, then addon_info(slug) for each one to
+    get the actual current state — addons.list() caches state, addon_info()
+    hits the Supervisor directly and always reflects the real container state.
     """
     try:
         from homeassistant.components.hassio import get_supervisor_client  # noqa: PLC0415
-        addons = await get_supervisor_client(hass).addons.list()
-        return addons or []
+        client = get_supervisor_client(hass)
+        addons_list = await client.addons.list()
+        if not addons_list:
+            return []
+        # Fetch fresh info for each add-on individually — list() state is stale
+        result = []
+        for addon in addons_list:
+            slug = addon.slug if hasattr(addon, "slug") else addon.get("slug")
+            if not slug:
+                continue
+            try:
+                info = await client.addons.addon_info(slug)
+                result.append(info)
+            except Exception as err:
+                _LOGGER.debug("Sentinel AppsProvider: could not get info for %s: %s", slug, err)
+                result.append(addon)  # fallback to list() data
+        return result
     except Exception as err:
         _LOGGER.debug("Sentinel AppsProvider: could not get addons from Supervisor: %s", err)
         return []
