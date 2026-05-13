@@ -9,6 +9,16 @@ Add-on states (from Supervisor AddonState):
   - stopped  → ignored by default; warning if watch_stopped_addons=True
   - error    → error (Docker failure on start/stop)
   - unknown  → warning (initial state or after uninstall)
+
+State source:
+  Reads hass.data[DATA_ADDONS_LIST] — the cache maintained by
+  HassioAddOnDataUpdateCoordinator (hassio integration). This cache is kept
+  up to date via EVENT_SUPERVISOR_EVENT push events from the Supervisor
+  WebSocket, so it always reflects the real container state.
+
+  We also subscribe to EVENT_SUPERVISOR_EVENT directly so we can trigger
+  an immediate rescan as soon as the Supervisor notifies HA of a state change,
+  without waiting for our poll interval.
 """
 from __future__ import annotations
 
@@ -17,7 +27,12 @@ from datetime import timedelta
 import logging
 from typing import Any
 
+from homeassistant.components.hassio.const import (
+    DATA_ADDONS_LIST,
+    EVENT_SUPERVISOR_EVENT,
+)
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.hassio import is_hassio
 from homeassistant.util import dt as dt_util
@@ -44,35 +59,14 @@ _WARNING_STATES = {_STATE_UNKNOWN}
 _TRANSIENT_STATES = {_STATE_STARTUP}
 
 
-async def _get_addons(hass: HomeAssistant) -> list[Any]:
-    """Return the list of installed add-ons with fresh real-time state.
+def _get_addons_from_cache(hass: HomeAssistant) -> list[Any]:
+    """Return the list of installed add-ons from the hassio coordinator cache.
 
-    Uses addons.list() to get slugs, then addon_info(slug) for each one to
-    get the actual current state — addons.list() caches state, addon_info()
-    hits the Supervisor directly and always reflects the real container state.
+    hass.data[DATA_ADDONS_LIST] is maintained by HassioAddOnDataUpdateCoordinator
+    and kept fresh via EVENT_SUPERVISOR_EVENT push events from the Supervisor.
+    This reflects the real container state without any additional API calls.
     """
-    try:
-        from homeassistant.components.hassio import get_supervisor_client  # noqa: PLC0415
-        client = get_supervisor_client(hass)
-        addons_list = await client.addons.list()
-        if not addons_list:
-            return []
-        # Fetch fresh info for each add-on individually — list() state is stale
-        result = []
-        for addon in addons_list:
-            slug = addon.slug if hasattr(addon, "slug") else addon.get("slug")
-            if not slug:
-                continue
-            try:
-                info = await client.addons.addon_info(slug)
-                result.append(info)
-            except Exception as err:
-                _LOGGER.debug("Sentinel AppsProvider: could not get info for %s: %s", slug, err)
-                result.append(addon)  # fallback to list() data
-        return result
-    except Exception as err:
-        _LOGGER.debug("Sentinel AppsProvider: could not get addons from Supervisor: %s", err)
-        return []
+    return hass.data.get(DATA_ADDONS_LIST) or []
 
 
 async def _restart_addon(hass: HomeAssistant, slug: str) -> bool:
@@ -89,7 +83,10 @@ async def _restart_addon(hass: HomeAssistant, slug: str) -> bool:
 class AppsProvider(HealthProvider):
     """Health provider for Home Assistant OS add-ons.
 
-    Polls Supervisor directly every 60s for real-time add-on states.
+    Reads add-on states from the hassio coordinator cache (hass.data[DATA_ADDONS_LIST])
+    which is kept up to date via Supervisor WebSocket push events. Also subscribes
+    to EVENT_SUPERVISOR_EVENT for immediate rescans on state changes.
+    Periodic polling is kept as a fallback safety net.
     Only active on HA OS / Supervised installations.
     """
 
@@ -105,6 +102,7 @@ class AppsProvider(HealthProvider):
         self._poll_interval = timedelta(seconds=poll_interval)
         self._on_change: Callable[[HealthItem], None] | None = None
         self._unsub_poll: Callable | None = None
+        self._unsub_supervisor_event: Callable | None = None
         self._previous_healthy: dict[str, bool] = {}
 
     @property
@@ -128,10 +126,17 @@ class AppsProvider(HealthProvider):
 
         self._on_change = on_change_callback
 
-        # Initial scan
-        await self._async_scan()
+        # Initial scan from cache
+        self._sync_scan()
 
-        # Schedule periodic polling
+        # Subscribe to Supervisor push events for immediate rescans
+        self._unsub_supervisor_event = async_dispatcher_connect(
+            self.hass,
+            EVENT_SUPERVISOR_EVENT,
+            self._on_supervisor_event,
+        )
+
+        # Periodic poll as fallback safety net
         self._unsub_poll = async_track_time_interval(
             self.hass,
             self._async_poll,
@@ -139,29 +144,39 @@ class AppsProvider(HealthProvider):
         )
 
         _LOGGER.debug(
-            "Sentinel AppsProvider: monitoring %d add-ons", len(self._items)
+            "Sentinel AppsProvider: monitoring %d add-ons (push + %ds poll)",
+            len(self._items),
+            self._poll_interval.seconds,
         )
 
     async def async_unload(self) -> None:
-        """Unload provider and cancel polling."""
+        """Unload provider and cancel subscriptions."""
         if self._unsub_poll:
             self._unsub_poll()
             self._unsub_poll = None
+        if self._unsub_supervisor_event:
+            self._unsub_supervisor_event()
+            self._unsub_supervisor_event = None
 
     async def async_reload_item(self, item_id: str) -> bool:
         """Restart the given add-on (item_id = slug)."""
         return await _restart_addon(self.hass, item_id)
 
     @callback
-    def _async_poll(self, _now: Any = None) -> None:
-        """Schedule a scan from the time interval callback."""
-        self.hass.async_create_task(self._async_scan())
+    def _on_supervisor_event(self, event: dict[str, Any]) -> None:
+        """Trigger an immediate rescan when the Supervisor notifies a state change."""
+        _LOGGER.debug("Sentinel AppsProvider: supervisor event received, rescanning")
+        self._sync_scan()
 
-    async def _async_scan(self) -> None:
-        """Scan all installed add-ons and update health items."""
-        addons = await _get_addons(self.hass)
-        if not addons:
-            return
+    @callback
+    def _async_poll(self, _now: Any = None) -> None:
+        """Periodic fallback poll — re-read from the hassio cache."""
+        self._sync_scan()
+
+    @callback
+    def _sync_scan(self) -> None:
+        """Read add-on states from the hassio coordinator cache and update items."""
+        addons = _get_addons_from_cache(self.hass)
 
         seen_slugs: set[str] = set()
 
