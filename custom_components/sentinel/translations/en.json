@@ -27,9 +27,9 @@
         "data_description": {
           "fire_events": "Fire a `sentinel_item_changed` event on the HA event bus on every state change. Required for automations.",
           "grace_period": "How long an integration must remain in a failed state before being reported (0 = immediate).",
-          "excluded_entries": "Integrations to exclude from monitoring.",
-          "ignored_device_sources": "Device sources to exclude from monitoring (e.g. mobile_app, cast). Sources are listed from your current installation.",
-          "ignored_device_ids": "Specific devices to exclude from monitoring.",
+          "excluded_entries": "Integrations to exclude from monitoring. Only the integration state is excluded — its physical devices are still monitored.",
+          "ignored_device_sources": "Device sources to exclude from monitoring (e.g. mobile_app, cast). Only devices from these sources are excluded — the integration state itself is still monitored. Sources are listed from your current installation.",
+          "ignored_device_ids": "Specific devices to exclude from monitoring, regardless of their source.",
           "watch_stopped_addons": "When enabled, stopped applications are reported as warnings. By default a stopped application is considered intentional.",
           "apps_poll_interval": "How often Sentinel queries the Supervisor for application states (30–300 seconds, default 60)."
         }

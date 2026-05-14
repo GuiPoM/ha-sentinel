@@ -117,7 +117,20 @@ class DevicesProvider(HealthProvider):
         if device_id in self._ignored_device_ids:
             return False
         source = _get_device_source(self.hass, device_id)
-        return source not in self._ignored_sources
+        if source in self._ignored_sources:
+            return False
+        # Skip devices whose config entries are all disabled in HA
+        # (e.g. integration disabled by user — its devices are intentionally off)
+        dev_reg = dr.async_get(self.hass)
+        device = dev_reg.async_get(device_id)
+        if device and device.config_entries:
+            entries = self.hass.config_entries
+            if all(
+                (e := entries.async_get_entry(eid)) is not None and e.disabled_by is not None
+                for eid in device.config_entries
+            ):
+                return False
+        return True
 
     def _integration_has_problem(self, device_id: str) -> bool:
         """Return True if the integration owning this device already has a problem."""
@@ -246,13 +259,42 @@ class DevicesProvider(HealthProvider):
 
     @callback
     def _on_entity_registry_updated(self, event: Event) -> None:
-        """Handle entity registry changes — clean up removed entities."""
+        """Handle entity registry changes."""
         action = event.data.get("action")
         entity_id = event.data.get("entity_id")
-        if action == "remove" and entity_id in self._entity_to_device:
-            self._entity_to_device.pop(entity_id)
-            self._resubscribe_state()
-            _LOGGER.debug("DevicesProvider: removed entity %s from tracking", entity_id)
+
+        if action == "remove":
+            if entity_id in self._entity_to_device:
+                self._entity_to_device.pop(entity_id)
+                self._resubscribe_state()
+                _LOGGER.debug("DevicesProvider: removed entity %s from tracking", entity_id)
+
+        elif action == "update":
+            changes = event.data.get("changes", {})
+            if "disabled_by" not in changes:
+                return
+
+            ent_reg = er.async_get(self.hass)
+            entity = ent_reg.async_get(entity_id)
+
+            if entity is not None and entity.disabled_by is None:
+                # Entity re-enabled — treat as new entity added
+                self._on_entity_added(event)
+            elif entity_id in self._entity_to_device:
+                # Entity disabled — remove from tracking
+                device_id = self._entity_to_device.pop(entity_id)
+                self._resubscribe_state()
+                _LOGGER.debug(
+                    "DevicesProvider: entity %s disabled, removed from tracking", entity_id
+                )
+                # If device has no more tracked entities, remove it
+                if not any(d == device_id for d in self._entity_to_device.values()):
+                    self._items.pop(device_id, None)
+                    self._previous_healthy.pop(device_id, None)
+                    _LOGGER.debug(
+                        "DevicesProvider: device %s has no more tracked entities, removed",
+                        device_id,
+                    )
 
     @callback
     def _resubscribe_state(self) -> None:

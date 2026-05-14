@@ -3,25 +3,30 @@
 Monitors Home Assistant OS add-ons via the Supervisor API.
 Only active on HA OS / Supervised installations.
 
-Add-on states (from Supervisor AddonState):
+Add-on states (from Supervisor AppState):
   - started  → ok
   - startup  → transient, ignored
-  - stopped  → ignored by default; warning if watch_stopped_addons=True
-  - error    → error (Docker failure on start/stop)
+  - stopped  → ok by default (intentional stop); warning if watch_stopped_addons=True
+  - error    → error (container exited with non-zero code, or Docker API failure)
   - unknown  → warning (initial state or after uninstall)
 
 State source:
-  Reads hass.data[DATA_ADDONS_LIST] — the cache maintained by
-  HassioAddOnDataUpdateCoordinator (hassio integration). This cache is kept
-  up to date via EVENT_SUPERVISOR_EVENT push events from the Supervisor
-  WebSocket, so it always reflects the real container state.
+  Uses addons.list() to enumerate slugs, then addon_info(slug) for each one to
+  get the real-time state from the Supervisor's in-memory AppState — not a cache.
 
-  We also subscribe to EVENT_SUPERVISOR_EVENT directly so we can trigger
-  an immediate rescan as soon as the Supervisor notifies HA of a state change,
-  without waiting for our poll interval.
+  Also subscribes to EVENT_SUPERVISOR_EVENT as an opportunistic trigger for
+  immediate rescans when the Supervisor notifies HA of any change.
+  Periodic polling is kept as a fallback safety net.
+
+Note on error vs stopped:
+  Due to a Supervisor bug (container_state_changed does not check _manual_stop),
+  a manual stop that exits with non-zero code (e.g. SIGTERM → exit 143) produces
+  AppState.ERROR instead of AppState.STOPPED. A fix has been reported upstream.
+  Until then, error = potentially a real problem or a manual stop with bad exit code.
 """
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Callable
 from datetime import timedelta
 import logging
@@ -34,23 +39,12 @@ from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.hassio import is_hassio
 from homeassistant.util import dt as dt_util
 
-# DATA_ADDONS_LIST is a HassKey — import it defensively since older HA versions
-# may not export it from hassio.const. Fall back to the raw string key.
-try:
-    from homeassistant.components.hassio.const import DATA_ADDONS_LIST  # type: ignore[attr-defined]  # noqa: PLC0415
-    _ADDONS_LIST_KEY: object = DATA_ADDONS_LIST
-except ImportError:
-    _ADDONS_LIST_KEY = "hassio_addons_list"
-
 from ..const import DEFAULT_APPS_POLL_INTERVAL, PROVIDER_APPS
 from . import HealthItem, HealthProvider
 
 _LOGGER = logging.getLogger(__name__)
 
-# Default poll interval — overridden by config
-_DEFAULT_POLL_INTERVAL = timedelta(seconds=DEFAULT_APPS_POLL_INTERVAL)
-
-# Raw Supervisor AddonState values
+# Raw Supervisor AppState values
 _STATE_STARTED = "started"
 _STATE_STARTUP = "startup"
 _STATE_STOPPED = "stopped"
@@ -64,14 +58,37 @@ _WARNING_STATES = {_STATE_UNKNOWN}
 _TRANSIENT_STATES = {_STATE_STARTUP}
 
 
-def _get_addons_from_cache(hass: HomeAssistant) -> list[Any]:
-    """Return the list of installed add-ons from the hassio coordinator cache.
+async def _get_addons_with_state(hass: HomeAssistant) -> list[Any]:
+    """Return installed add-ons with fresh real-time state via addon_info().
 
-    hass.data[DATA_ADDONS_LIST] is maintained by HassioAddOnDataUpdateCoordinator
-    and kept fresh via EVENT_SUPERVISOR_EVENT push events from the Supervisor.
-    This reflects the real container state without any additional API calls.
+    Uses addons.list() to enumerate slugs, then addon_info(slug) per add-on
+    to read the Supervisor's in-memory AppState — not a cached value.
+    Falls back to the list() data for any add-on where addon_info() fails.
     """
-    return hass.data.get(_ADDONS_LIST_KEY) or []
+    try:
+        from homeassistant.components.hassio import get_supervisor_client  # noqa: PLC0415
+        client = get_supervisor_client(hass)
+        addons_list = await client.addons.list()
+        if not addons_list:
+            return []
+    except Exception as err:
+        _LOGGER.debug("Sentinel AppsProvider: could not list add-ons: %s", err)
+        return []
+
+    result = []
+    for addon in addons_list:
+        slug = addon.slug if hasattr(addon, "slug") else addon.get("slug")
+        if not slug:
+            continue
+        try:
+            info = await client.addons.addon_info(slug)
+            result.append(info)
+        except Exception as err:
+            _LOGGER.debug(
+                "Sentinel AppsProvider: could not get info for %s: %s", slug, err
+            )
+            result.append(addon)  # fallback to list() data
+    return result
 
 
 async def _restart_addon(hass: HomeAssistant, slug: str) -> bool:
@@ -88,11 +105,9 @@ async def _restart_addon(hass: HomeAssistant, slug: str) -> bool:
 class AppsProvider(HealthProvider):
     """Health provider for Home Assistant OS add-ons.
 
-    Reads add-on states from the hassio coordinator cache (hass.data[DATA_ADDONS_LIST])
-    which is kept up to date via Supervisor WebSocket push events. Also subscribes
-    to EVENT_SUPERVISOR_EVENT for immediate rescans on state changes.
-    Periodic polling is kept as a fallback safety net.
-    Only active on HA OS / Supervised installations.
+    Fetches real-time add-on states via addon_info(slug) from the Supervisor.
+    Rescans are triggered by EVENT_SUPERVISOR_EVENT (opportunistic push) and
+    by a periodic poll as a fallback. Only active on HA OS / Supervised installs.
     """
 
     def __init__(
@@ -109,6 +124,7 @@ class AppsProvider(HealthProvider):
         self._unsub_poll: Callable | None = None
         self._unsub_supervisor_event: Callable | None = None
         self._previous_healthy: dict[str, bool] = {}
+        self._scan_lock = asyncio.Lock()
 
     @property
     def provider_id(self) -> str:
@@ -131,10 +147,10 @@ class AppsProvider(HealthProvider):
 
         self._on_change = on_change_callback
 
-        # Initial scan from cache
-        self._sync_scan()
+        # Initial scan
+        await self._async_scan()
 
-        # Subscribe to Supervisor push events for immediate rescans
+        # Subscribe to Supervisor push events for opportunistic immediate rescans
         self._unsub_supervisor_event = async_dispatcher_connect(
             self.hass,
             EVENT_SUPERVISOR_EVENT,
@@ -144,7 +160,7 @@ class AppsProvider(HealthProvider):
         # Periodic poll as fallback safety net
         self._unsub_poll = async_track_time_interval(
             self.hass,
-            self._async_poll,
+            self._schedule_scan,
             self._poll_interval,
         )
 
@@ -169,42 +185,44 @@ class AppsProvider(HealthProvider):
 
     @callback
     def _on_supervisor_event(self, event: dict[str, Any]) -> None:
-        """Trigger an immediate rescan when the Supervisor notifies a state change."""
-        _LOGGER.debug("Sentinel AppsProvider: supervisor event received, rescanning")
-        self._sync_scan()
+        """Schedule an immediate rescan when the Supervisor fires an event."""
+        _LOGGER.debug("Sentinel AppsProvider: supervisor event — scheduling rescan")
+        self.hass.async_create_task(self._async_scan())
 
     @callback
-    def _async_poll(self, _now: Any = None) -> None:
-        """Periodic fallback poll — re-read from the hassio cache."""
-        self._sync_scan()
+    def _schedule_scan(self, _now: Any = None) -> None:
+        """Schedule a periodic scan from the time interval callback."""
+        self.hass.async_create_task(self._async_scan())
 
-    @callback
-    def _sync_scan(self) -> None:
-        """Read add-on states from the hassio coordinator cache and update items."""
-        addons = _get_addons_from_cache(self.hass)
+    async def _async_scan(self) -> None:
+        """Fetch fresh add-on states via addon_info() and update health items."""
+        async with self._scan_lock:
+            addons = await _get_addons_with_state(self.hass)
+            if not addons:
+                return
 
-        seen_slugs: set[str] = set()
+            seen_slugs: set[str] = set()
 
-        for addon in addons:
-            slug = self._get_slug(addon)
-            if not slug:
-                continue
+            for addon in addons:
+                slug = self._get_slug(addon)
+                if not slug:
+                    continue
 
-            state = self._get_state(addon)
-            if state in _TRANSIENT_STATES:
-                continue  # ignore transient states
+                state = self._get_state(addon)
+                if state in _TRANSIENT_STATES:
+                    continue
 
-            seen_slugs.add(slug)
-            self._update_addon(addon, slug, state)
+                seen_slugs.add(slug)
+                self._update_addon(addon, slug, state)
 
-        # Clean up removed add-ons
-        for slug in list(self._items.keys()):
-            if slug not in seen_slugs:
-                self._items.pop(slug, None)
-                self._previous_healthy.pop(slug, None)
+            # Clean up removed add-ons
+            for slug in list(self._items.keys()):
+                if slug not in seen_slugs:
+                    self._items.pop(slug, None)
+                    self._previous_healthy.pop(slug, None)
 
     def _get_slug(self, addon: Any) -> str | None:
-        """Extract the slug from an InstalledAddon object or dict."""
+        """Extract the slug from an InstalledAddon/InstalledAddonComplete object or dict."""
         if isinstance(addon, dict):
             return addon.get("slug")
         return getattr(addon, "slug", None)
@@ -215,7 +233,7 @@ class AppsProvider(HealthProvider):
             state = addon.get("state", _STATE_UNKNOWN)
         else:
             state = getattr(addon, "state", _STATE_UNKNOWN)
-        # Normalize — AddonState is a StrEnum, .value gives the raw string
+        # Normalize — AppState/AddonState is a StrEnum, .value gives the raw string
         return str(state.value if hasattr(state, "value") else state)
 
     def _get_name(self, addon: Any) -> str:
