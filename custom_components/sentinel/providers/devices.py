@@ -123,13 +123,15 @@ class DevicesProvider(HealthProvider):
         # (e.g. integration disabled by user — its devices are intentionally off)
         dev_reg = dr.async_get(self.hass)
         device = dev_reg.async_get(device_id)
-        if device and device.config_entries:
-            entries = self.hass.config_entries
-            if all(
-                (e := entries.async_get_entry(eid)) is not None and e.disabled_by is not None
-                for eid in device.config_entries
-            ):
-                return False
+        if device is not None:
+            config_entries = set(device.config_entries) if device.config_entries else set()
+            if config_entries:
+                entries = self.hass.config_entries
+                if all(
+                    (e := entries.async_get_entry(eid)) is not None and e.disabled_by is not None
+                    for eid in config_entries
+                ):
+                    return False
         return True
 
     def _integration_has_problem(self, device_id: str) -> bool:
