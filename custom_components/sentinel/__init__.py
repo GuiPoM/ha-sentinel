@@ -17,7 +17,7 @@ _LOGGER = logging.getLogger(__name__)
 PLATFORMS = ["binary_sensor", "sensor"]
 
 # Service schemas
-SERVICE_RELOAD = "reload"
+SERVICE_RELOAD = "reload_item"
 SERVICE_RELOAD_SCHEMA = vol.Schema(
     {vol.Required("item_id"): cv.string}
 )

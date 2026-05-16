@@ -125,9 +125,9 @@ async def test_service_reload_exists(
     hass: HomeAssistant,
     sentinel_config_entry: MockConfigEntry,
 ) -> None:
-    """Test that sentinel.reload service is registered."""
+    """Test that sentinel.reload_item service is registered."""
     await setup_sentinel(hass, sentinel_config_entry)
-    assert hass.services.has_service(DOMAIN, "reload")
+    assert hass.services.has_service(DOMAIN, "reload_item")
 
 
 async def test_unload_removes_services(
