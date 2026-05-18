@@ -1,6 +1,6 @@
 # Sentinel
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/custom-components/hacs)
+[![Install via HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=GuiPoM&repository=ha-sentinel&category=integration)
 [![GitHub release](https://img.shields.io/github/release/GuiPoM/ha-sentinel.svg)](https://github.com/GuiPoM/ha-sentinel/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](./LICENSE)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue)](https://www.home-assistant.io/)
@@ -41,14 +41,19 @@ Sentinel watches your integrations, physical devices and applications \(add-ons\
 
 ## Installation
 
-### Via HACS (recommended)
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=GuiPoM&repository=ha-sentinel&category=integration)
 
-1. In HACS, go to **Integrations** → **Custom repositories**
+<details>
+<summary>Install via HACS (manual steps)</summary>
+
+1. In HACS, go to **Integrations** → three-dot menu → **Custom repositories**
 2. Add `https://github.com/GuiPoM/ha-sentinel` — type **Integration**
 3. Search for **Sentinel** and install
 4. Restart Home Assistant
 5. Go to **Settings → Devices & Services → Add Integration** → search **Sentinel**
 6. Sentinel starts immediately with sensible defaults — no configuration required
+
+</details>
 
 <details>
 <summary>Manual installation</summary>
