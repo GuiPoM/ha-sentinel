@@ -108,6 +108,9 @@ class AppsProvider(HealthProvider):
     Fetches real-time add-on states via addon_info(slug) from the Supervisor.
     Rescans are triggered by EVENT_SUPERVISOR_EVENT (opportunistic push) and
     by a periodic poll as a fallback. Only active on HA OS / Supervised installs.
+
+    Feature (Claude Code): ignored_addon_slugs — add-ons excluded from monitoring,
+    configurable via the options flow with a dynamic dropdown populated from the Supervisor.
     """
 
     def __init__(
@@ -115,11 +118,13 @@ class AppsProvider(HealthProvider):
         hass: HomeAssistant,
         watch_stopped: bool = False,
         poll_interval: int = DEFAULT_APPS_POLL_INTERVAL,
+        ignored_addon_slugs: set[str] | None = None,
     ) -> None:
         """Initialize the apps provider."""
         super().__init__(hass)
         self._watch_stopped = watch_stopped
         self._poll_interval = timedelta(seconds=poll_interval)
+        self._ignored_slugs: set[str] = ignored_addon_slugs or set()
         self._on_change: Callable[[HealthItem], None] | None = None
         self._unsub_poll: Callable | None = None
         self._unsub_supervisor_event: Callable | None = None
@@ -206,6 +211,9 @@ class AppsProvider(HealthProvider):
             for addon in addons:
                 slug = self._get_slug(addon)
                 if not slug:
+                    continue
+
+                if slug in self._ignored_slugs:
                     continue
 
                 state = self._get_state(addon)

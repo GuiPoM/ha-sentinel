@@ -20,6 +20,7 @@ CONF_IGNORED_DEVICE_IDS = "ignored_device_ids"
 # Configuration keys — apps provider
 CONF_WATCH_STOPPED_ADDONS = "watch_stopped_addons"
 CONF_APPS_POLL_INTERVAL = "apps_poll_interval"
+CONF_IGNORED_ADDON_SLUGS = "ignored_addon_slugs"
 
 # Defaults
 DEFAULT_GRACE_PERIOD = 30  # seconds

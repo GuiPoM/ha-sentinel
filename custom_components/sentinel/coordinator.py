@@ -18,6 +18,7 @@ from .const import (
     CONF_GRACE_PERIOD,
     CONF_IGNORED_DEVICE_IDS,
     CONF_IGNORED_DEVICE_SOURCES,
+    CONF_IGNORED_ADDON_SLUGS,
     CONF_WATCH_STOPPED_ADDONS,
     DEFAULT_APPS_POLL_INTERVAL,
     DEFAULT_FIRE_EVENTS,
@@ -75,6 +76,7 @@ class SentinelCoordinator:
             self.hass,
             watch_stopped=self._config.get(CONF_WATCH_STOPPED_ADDONS, DEFAULT_WATCH_STOPPED_ADDONS),
             poll_interval=self._config.get(CONF_APPS_POLL_INTERVAL, DEFAULT_APPS_POLL_INTERVAL),
+            ignored_addon_slugs=set(self._config.get(CONF_IGNORED_ADDON_SLUGS, [])),
         )
         self._providers[PROVIDER_APPS] = apps_provider
         await apps_provider.async_setup(self._on_item_changed)
@@ -171,6 +173,8 @@ class SentinelCoordinator:
             item = provider.get_item(item_id)
             if item is not None:
                 item.failure_count = 0
-                async_dispatcher_send(self.hass, SIGNAL_SENTINEL_UPDATE, item)
+                # Fix (Claude Code): fire the bus event so dashboards/automations
+                # reflect the reset immediately instead of waiting for the next state change.
+                self._on_item_changed(item)
                 return
 

@@ -22,7 +22,8 @@
           "ignored_device_sources": "Ignored device sources",
           "ignored_device_ids": "Ignored devices",
           "watch_stopped_addons": "Report stopped applications as warning",
-          "apps_poll_interval": "Application poll interval (seconds)"
+          "apps_poll_interval": "Application poll interval (seconds)",
+          "ignored_addon_slugs": "Ignore intentionally stopped applications"
         },
         "data_description": {
           "fire_events": "Fire a `sentinel_item_changed` event on the HA event bus on every state change. Required for automations.",
@@ -31,7 +32,8 @@
           "ignored_device_sources": "Device sources to exclude from monitoring (e.g. mobile_app, cast). Only devices from these sources are excluded — the integration state itself is still monitored. Sources are listed from your current installation.",
           "ignored_device_ids": "Specific devices to exclude from monitoring, regardless of their source.",
           "watch_stopped_addons": "When enabled, stopped applications are reported as warnings. By default a stopped application is considered intentional.",
-          "apps_poll_interval": "How often Sentinel queries the Supervisor for application states (30–300 seconds, default 60)."
+          "apps_poll_interval": "How often Sentinel queries the Supervisor for application states (30–300 seconds, default 60).",
+          "ignored_addon_slugs": "Applications to exclude from monitoring. Useful for add-ons that are intentionally stopped (e.g. Z-Wave flasher, USB/IP client) and would otherwise trigger false alerts. The list is populated from your current installation."
         }
       }
     }

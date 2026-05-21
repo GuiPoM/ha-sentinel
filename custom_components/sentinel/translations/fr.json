@@ -22,7 +22,8 @@
           "ignored_device_sources": "Sources d'appareils ignorées",
           "ignored_device_ids": "Appareils ignorés",
           "watch_stopped_addons": "Signaler les applications arrêtées en avertissement",
-          "apps_poll_interval": "Intervalle de sondage des applications (secondes)"
+          "apps_poll_interval": "Intervalle de sondage des applications (secondes)",
+          "ignored_addon_slugs": "Ignorer les applications arrêtées"
         },
         "data_description": {
           "fire_events": "Émet un événement `sentinel_item_changed` sur le bus HA à chaque changement d'état. Nécessaire pour les automations.",
@@ -31,7 +32,8 @@
           "ignored_device_sources": "Sources d'appareils à exclure de la surveillance (ex : mobile_app, cast). Seuls les appareils de ces sources sont exclus — l'état de l'intégration elle-même reste surveillé. Les sources sont listées depuis votre installation.",
           "ignored_device_ids": "Appareils spécifiques à exclure de la surveillance, quelle que soit leur source.",
           "watch_stopped_addons": "Si activé, les applications arrêtées sont signalées en avertissement. Par défaut, un arrêt est considéré intentionnel.",
-          "apps_poll_interval": "Fréquence à laquelle Sentinel interroge le Supervisor pour l'état des applications (30-300 secondes, défaut 60)."
+          "apps_poll_interval": "Fréquence à laquelle Sentinel interroge le Supervisor pour l'état des applications (30-300 secondes, défaut 60).",
+          "ignored_addon_slugs": "Applications à exclure de la surveillance. Utile pour les add-ons intentionnellement arrêtés (ex : flasheur Z-Wave, client USB/IP) qui déclencheraient autrement de fausses alertes. La liste est chargée depuis votre installation."
         }
       }
     }

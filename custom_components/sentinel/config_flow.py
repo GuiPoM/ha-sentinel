@@ -8,6 +8,7 @@ import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow
 from homeassistant.core import callback
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers.hassio import is_hassio
 from homeassistant.helpers.selector import (
     BooleanSelector,
     DeviceSelector,
@@ -25,6 +26,7 @@ from .const import (
     CONF_EXCLUDED_ENTRIES,
     CONF_FIRE_EVENTS,
     CONF_GRACE_PERIOD,
+    CONF_IGNORED_ADDON_SLUGS,
     CONF_IGNORED_DEVICE_IDS,
     CONF_IGNORED_DEVICE_SOURCES,
     CONF_WATCH_STOPPED_ADDONS,
@@ -67,6 +69,7 @@ class SentinelConfigFlow(ConfigFlow, domain=DOMAIN):
                 CONF_IGNORED_DEVICE_IDS: [],
                 CONF_WATCH_STOPPED_ADDONS: DEFAULT_WATCH_STOPPED_ADDONS,
                 CONF_APPS_POLL_INTERVAL: DEFAULT_APPS_POLL_INTERVAL,
+                CONF_IGNORED_ADDON_SLUGS: [],
             },
         )
 
@@ -98,6 +101,29 @@ class SentinelOptionsFlow(OptionsFlow):
             and entry.domain not in EXCLUDED_DOMAINS
             and getattr(entry, "disabled_by", None) is None
         }
+
+        # Apps: add-ons installés (HAOS uniquement)
+        addon_options: list[dict] = []
+        if is_hassio(self.hass):
+            try:
+                from homeassistant.components.hassio import get_supervisor_client  # noqa: PLC0415
+                client = get_supervisor_client(self.hass)
+                addons_list = await client.addons.list()
+                addon_options = sorted(
+                    [
+                        {
+                            "value": slug,
+                            "label": name or slug,
+                        }
+                        for addon in addons_list
+                        if (slug := addon.slug if hasattr(addon, "slug") else addon.get("slug", ""))
+                        and (name := addon.name if hasattr(addon, "name") else addon.get("name", ""))
+                        is not None
+                    ],
+                    key=lambda x: x["label"].lower(),
+                )
+            except Exception:
+                pass
 
         # Devices: sources present in the device registry (what's actually installed)
         dev_reg = dr.async_get(self.hass)
@@ -163,6 +189,17 @@ class SentinelOptionsFlow(OptionsFlow):
                     default=current.get(CONF_APPS_POLL_INTERVAL, DEFAULT_APPS_POLL_INTERVAL),
                 ): NumberSelector(
                     NumberSelectorConfig(min=30, max=300, step=30, mode=NumberSelectorMode.BOX)
+                ),
+                vol.Optional(
+                    CONF_IGNORED_ADDON_SLUGS,
+                    default=current.get(CONF_IGNORED_ADDON_SLUGS, []),
+                ): SelectSelector(
+                    SelectSelectorConfig(
+                        options=addon_options,
+                        multiple=True,
+                        custom_value=True,
+                        mode=SelectSelectorMode.DROPDOWN,
+                    )
                 ),
             }
         )
