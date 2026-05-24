@@ -3,15 +3,15 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+from homeassistant.config_entries import ConfigEntryChange, ConfigEntryState
+from homeassistant.util import dt as dt_util
+
 from custom_components.sentinel.const import PROVIDER_INTEGRATIONS
 from custom_components.sentinel.providers import HealthItem
 from custom_components.sentinel.providers.integrations import (
     IntegrationsProvider,
     _entry_state_str,
 )
-
-from homeassistant.config_entries import ConfigEntryState
-from homeassistant.util import dt as dt_util
 
 
 def _make_entry(
@@ -274,3 +274,103 @@ class TestApplyState:
         on_change.assert_called_once()
         item = on_change.call_args[0][0]
         assert item.healthy is True
+
+
+class TestReasonChangeNotification:
+    """Test fix for issue #23 — notify when reason changes without health state flip."""
+
+    def test_reason_change_triggers_notification(self):
+        """When reason changes on an unhealthy item, on_change must be called."""
+        on_change = MagicMock()
+        provider = _make_provider()
+        provider._on_change = on_change
+
+        entry = _make_entry(entry_id="e1", state_value="setup_error", reason="Network error")
+        provider._items["e1"] = HealthItem(
+            id="e1", name="Netatmo", provider=PROVIDER_INTEGRATIONS,
+            healthy=False, state="setup_error", severity="error",
+            reason="Timeout", failure_count=1, since=dt_util.utcnow(),
+        )
+        provider._previous_healthy["e1"] = False
+
+        provider._apply_state(entry, "setup_error")
+
+        on_change.assert_called_once()
+        item = on_change.call_args[0][0]
+        assert item.reason == "Network error"
+
+    def test_same_reason_does_not_trigger_notification(self):
+        """When reason does not change and health is stable, on_change must not be called."""
+        on_change = MagicMock()
+        provider = _make_provider()
+        provider._on_change = on_change
+
+        entry = _make_entry(entry_id="e1", state_value="setup_error", reason="Timeout")
+        provider._items["e1"] = HealthItem(
+            id="e1", name="Netatmo", provider=PROVIDER_INTEGRATIONS,
+            healthy=False, state="setup_error", severity="error",
+            reason="Timeout", failure_count=1, since=dt_util.utcnow(),
+        )
+        provider._previous_healthy["e1"] = False
+
+        provider._apply_state(entry, "setup_error")
+
+        on_change.assert_not_called()
+
+    def test_reason_change_on_healthy_item_does_not_trigger_notification(self):
+        """When reason changes but item is healthy, on_change must not be called."""
+        on_change = MagicMock()
+        provider = _make_provider()
+        provider._on_change = on_change
+
+        entry = _make_entry(entry_id="e1", state_value="loaded", reason="New reason")
+        provider._items["e1"] = HealthItem(
+            id="e1", name="Netatmo", provider=PROVIDER_INTEGRATIONS,
+            healthy=True, state="loaded", severity="ok",
+            reason="Old reason", failure_count=0, since=dt_util.utcnow(),
+        )
+        provider._previous_healthy["e1"] = True
+
+        provider._apply_state(entry, "loaded")
+
+        on_change.assert_not_called()
+
+
+class TestStaleItemCleanup:
+    """Test fix for issue #22 — stale HealthItem when integration disabled at runtime."""
+
+    def test_disabling_tracked_entry_cleans_up_items(self):
+        """When a tracked entry is disabled at runtime, _items must be cleaned up."""
+        provider = _make_provider(excluded=["e1"])
+        on_change = MagicMock()
+        provider._on_change = on_change
+
+        # Pre-populate as if the entry was previously tracked
+        entry = _make_entry(entry_id="e1", state_value="setup_error")
+        provider._items["e1"] = HealthItem(
+            id="e1", name="Netatmo", provider=PROVIDER_INTEGRATIONS,
+            healthy=False, state="setup_error", severity="error",
+            failure_count=1, since=dt_util.utcnow(),
+        )
+        provider._previous_healthy["e1"] = False
+
+        # Simulate an UPDATED event — entry is now excluded (_should_watch returns False)
+        provider._on_entry_changed(ConfigEntryChange.UPDATED, entry)
+
+        assert "e1" not in provider._items
+        assert "e1" not in provider._previous_healthy
+        on_change.assert_not_called()
+
+    def test_non_tracked_entry_not_watched_is_noop(self):
+        """When an entry was never tracked and is not watched, nothing changes."""
+        provider = _make_provider(excluded=["e1"])
+        on_change = MagicMock()
+        provider._on_change = on_change
+        entry = _make_entry(entry_id="e1", state_value="setup_error")
+
+        # No items pre-populated — should be a no-op
+        provider._on_entry_changed(ConfigEntryChange.UPDATED, entry)
+
+        assert "e1" not in provider._items
+        assert "e1" not in provider._previous_healthy
+        on_change.assert_not_called()
