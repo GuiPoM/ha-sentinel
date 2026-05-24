@@ -3,15 +3,15 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+from homeassistant.config_entries import ConfigEntryChange, ConfigEntryState
+from homeassistant.util import dt as dt_util
+
 from custom_components.sentinel.const import PROVIDER_INTEGRATIONS
 from custom_components.sentinel.providers import HealthItem
 from custom_components.sentinel.providers.integrations import (
     IntegrationsProvider,
     _entry_state_str,
 )
-
-from homeassistant.config_entries import ConfigEntryState
-from homeassistant.util import dt as dt_util
 
 
 def _make_entry(
@@ -281,8 +281,6 @@ class TestStaleItemCleanup:
 
     def test_disabling_tracked_entry_cleans_up_items(self):
         """When a tracked entry is disabled at runtime, _items must be cleaned up."""
-        from homeassistant.config_entries import ConfigEntryChange
-
         provider = _make_provider(excluded=["e1"])
         on_change = MagicMock()
         provider._on_change = on_change
@@ -301,12 +299,13 @@ class TestStaleItemCleanup:
 
         assert "e1" not in provider._items
         assert "e1" not in provider._previous_healthy
+        on_change.assert_not_called()
 
     def test_non_tracked_entry_not_watched_is_noop(self):
         """When an entry was never tracked and is not watched, nothing changes."""
-        from homeassistant.config_entries import ConfigEntryChange
-
         provider = _make_provider(excluded=["e1"])
+        on_change = MagicMock()
+        provider._on_change = on_change
         entry = _make_entry(entry_id="e1", state_value="setup_error")
 
         # No items pre-populated — should be a no-op
@@ -314,3 +313,4 @@ class TestStaleItemCleanup:
 
         assert "e1" not in provider._items
         assert "e1" not in provider._previous_healthy
+        on_change.assert_not_called()
