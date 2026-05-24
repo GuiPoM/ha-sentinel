@@ -274,3 +274,44 @@ class TestApplyState:
         on_change.assert_called_once()
         item = on_change.call_args[0][0]
         assert item.healthy is True
+
+
+class TestStaleItemCleanup:
+    """Test fix for issue #22 — stale HealthItem when integration disabled at runtime."""
+
+    def test_disabling_tracked_entry_cleans_up_items(self):
+        """When a tracked entry is disabled at runtime, _items must be cleaned up."""
+        from homeassistant.config_entries import ConfigEntryChange
+        from unittest.mock import patch
+
+        provider = _make_provider(excluded=["e1"])
+        on_change = MagicMock()
+        provider._on_change = on_change
+
+        # Pre-populate as if the entry was previously tracked
+        entry = _make_entry(entry_id="e1", state_value="setup_error")
+        provider._items["e1"] = HealthItem(
+            id="e1", name="Netatmo", provider=PROVIDER_INTEGRATIONS,
+            healthy=False, state="setup_error", severity="error",
+            failure_count=1, since=dt_util.utcnow(),
+        )
+        provider._previous_healthy["e1"] = False
+
+        # Simulate an UPDATED event — entry is now excluded (_should_watch returns False)
+        provider._on_entry_changed(ConfigEntryChange.UPDATED, entry)
+
+        assert "e1" not in provider._items
+        assert "e1" not in provider._previous_healthy
+
+    def test_non_tracked_entry_not_watched_is_noop(self):
+        """When an entry was never tracked and is not watched, nothing changes."""
+        from homeassistant.config_entries import ConfigEntryChange
+
+        provider = _make_provider(excluded=["e1"])
+        entry = _make_entry(entry_id="e1", state_value="setup_error")
+
+        # No items pre-populated — should be a no-op
+        provider._on_entry_changed(ConfigEntryChange.UPDATED, entry)
+
+        assert "e1" not in provider._items
+        assert "e1" not in provider._previous_healthy
