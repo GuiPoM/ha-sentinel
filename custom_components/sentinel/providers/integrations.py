@@ -192,6 +192,11 @@ class IntegrationsProvider(HealthProvider):
 
         # Skip entries that don't pass the watch filter (excluded domains/sources)
         if not self._should_watch(entry):
+            # Clean up if entry was previously tracked (e.g. disabled at runtime)
+            if entry_id in self._items:
+                self._items.pop(entry_id)
+                self._previous_healthy.pop(entry_id, None)
+                self._cancel_pending(entry_id)
             return
 
         state_str = _entry_state_str(entry)
