@@ -171,6 +171,6 @@ class SentinelCoordinator:
             item = provider.get_item(item_id)
             if item is not None:
                 item.failure_count = 0
-                async_dispatcher_send(self.hass, SIGNAL_SENTINEL_UPDATE, item)
+                self._on_item_changed(item)
                 return
 

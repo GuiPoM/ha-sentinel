@@ -1,7 +1,10 @@
 """Tests for SentinelCoordinator — event firing, noise suppression."""
 from __future__ import annotations
 
+import asyncio
 from unittest.mock import MagicMock, patch
+
+from homeassistant.util import dt as dt_util
 
 from custom_components.sentinel.const import (
     CONF_FIRE_EVENTS,
@@ -10,6 +13,7 @@ from custom_components.sentinel.const import (
     PROVIDER_INTEGRATIONS,
 )
 from custom_components.sentinel.coordinator import SentinelCoordinator
+from custom_components.sentinel.providers import HealthItem
 from custom_components.sentinel.providers.integrations import IntegrationsProvider
 
 
@@ -151,3 +155,55 @@ class TestOnItemChanged:
 
         data = hass.bus.async_fire.call_args[0][1]
         assert data["domain"] == "hue"  # source.lower() as fallback
+
+
+class TestResetFailureCount:
+    """Test fix for issue #24 — reset_failure_count fires bus event."""
+
+    def _make_item(self, item_id="e1", failure_count=3):
+        return HealthItem(
+            id=item_id,
+            name="Netatmo",
+            provider=PROVIDER_INTEGRATIONS,
+            healthy=False,
+            state="setup_error",
+            severity="error",
+            failure_count=failure_count,
+            since=dt_util.utcnow(),
+            extra={"domain": "netatmo", "source": "user"},
+        )
+
+    def test_reset_failure_count_fires_bus_event(self):
+        """After reset, _on_item_changed must be called so bus event is fired."""
+        hass = MagicMock()
+        coordinator = SentinelCoordinator(hass, {CONF_FIRE_EVENTS: True})
+
+        item = self._make_item(failure_count=3)
+        mock_provider = MagicMock()
+        mock_provider.get_item.return_value = item
+        coordinator._providers[PROVIDER_INTEGRATIONS] = mock_provider
+
+        asyncio.get_event_loop().run_until_complete(
+            coordinator.async_reset_failure_count("e1")
+        )
+
+        assert item.failure_count == 0
+        hass.bus.async_fire.assert_called_once()
+        event_data = hass.bus.async_fire.call_args[0][1]
+        assert event_data["item_id"] == "e1"
+        assert event_data["failure_count"] == 0
+
+    def test_reset_failure_count_unknown_item_is_noop(self):
+        """When item_id is not found in any provider, nothing should happen."""
+        hass = MagicMock()
+        coordinator = SentinelCoordinator(hass, {CONF_FIRE_EVENTS: True})
+
+        mock_provider = MagicMock()
+        mock_provider.get_item.return_value = None
+        coordinator._providers[PROVIDER_INTEGRATIONS] = mock_provider
+
+        asyncio.get_event_loop().run_until_complete(
+            coordinator.async_reset_failure_count("unknown_id")
+        )
+
+        hass.bus.async_fire.assert_not_called()
