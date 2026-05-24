@@ -263,8 +263,13 @@ class IntegrationsProvider(HealthProvider):
         self._items[entry_id] = item
         self._previous_healthy[entry_id] = is_healthy
 
-        # Only notify if health state actually changed
-        if is_healthy != was_healthy or existing is None:
+        # Notify if health state changed, item is new, or reason changed while unhealthy
+        reason_changed = (
+            existing is not None
+            and not is_healthy
+            and existing.reason != item.reason
+        )
+        if is_healthy != was_healthy or existing is None or reason_changed:
             _LOGGER.debug(
                 "Entry %r (%s) changed: healthy=%s state=%s reason=%s",
                 entry.title,
