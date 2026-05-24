@@ -176,16 +176,46 @@ automation:
           {%- if trigger.event.data.reason %} — {{ trigger.event.data.reason }}{% endif %}
 ```
 
+### Example automation: notify with delay (recommended for devices)
+
+Some devices briefly go `unavailable` and recover on their own (e.g. Z-Wave locks, cameras with slow responses). Adding a delay before notifying avoids spurious alerts while still catching real problems.
+
+```yaml
+automation:
+  alias: "Sentinel — Alert on problem (with delay)"
+  trigger:
+    - platform: event
+      event_type: sentinel_item_changed
+  condition:
+    - condition: template
+      value_template: "{{ not trigger.event.data.healthy }}"
+  action:
+    - variables:
+        item_sensor: >-
+          binary_sensor.sentinel_{{ trigger.event.data.name | slugify }}_{{
+          trigger.event.data.domain }}
+    - delay: "00:01:00"
+    - condition: template
+      value_template: "{{ is_state(item_sensor, 'on') }}"
+    - action: notify.mobile_app_your_phone
+      data:
+        title: "{{ trigger.event.data.name }} ({{ trigger.event.data.domain }}) — {{ trigger.event.data.item_type }} problem"
+        message: >
+          {{ trigger.event.data.state | replace('_', ' ') }}
+          {%- if trigger.event.data.reason %} — {{ trigger.event.data.reason }}{% endif %}
+  mode: parallel
+```
+
 ---
 
 ## Actions
 
-### `sentinel.reload`
+### `sentinel.reload_item`
 
 Reload a broken integration or restart a crashed application (add-on).
 
 ```yaml
-action: sentinel.reload
+action: sentinel.reload_item
 data:
   item_id: "<config_entry_id or addon_slug>"
 ```
