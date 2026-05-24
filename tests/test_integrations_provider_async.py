@@ -282,7 +282,6 @@ class TestStaleItemCleanup:
     def test_disabling_tracked_entry_cleans_up_items(self):
         """When a tracked entry is disabled at runtime, _items must be cleaned up."""
         from homeassistant.config_entries import ConfigEntryChange
-        from unittest.mock import patch
 
         provider = _make_provider(excluded=["e1"])
         on_change = MagicMock()
