@@ -317,6 +317,24 @@ class TestReasonChangeNotification:
 
         on_change.assert_not_called()
 
+    def test_reason_change_on_healthy_item_does_not_trigger_notification(self):
+        """When reason changes but item is healthy, on_change must not be called."""
+        on_change = MagicMock()
+        provider = _make_provider()
+        provider._on_change = on_change
+
+        entry = _make_entry(entry_id="e1", state_value="loaded", reason="New reason")
+        provider._items["e1"] = HealthItem(
+            id="e1", name="Netatmo", provider=PROVIDER_INTEGRATIONS,
+            healthy=True, state="loaded", severity="ok",
+            reason="Old reason", failure_count=0, since=dt_util.utcnow(),
+        )
+        provider._previous_healthy["e1"] = True
+
+        provider._apply_state(entry, "loaded")
+
+        on_change.assert_not_called()
+
 
 class TestStaleItemCleanup:
     """Test fix for issue #22 — stale HealthItem when integration disabled at runtime."""
