@@ -274,3 +274,45 @@ class TestApplyState:
         on_change.assert_called_once()
         item = on_change.call_args[0][0]
         assert item.healthy is True
+
+
+class TestReasonChangeNotification:
+    """Test fix for issue #23 — notify when reason changes without health state flip."""
+
+    def test_reason_change_triggers_notification(self):
+        """When reason changes on an unhealthy item, on_change must be called."""
+        on_change = MagicMock()
+        provider = _make_provider()
+        provider._on_change = on_change
+
+        entry = _make_entry(entry_id="e1", state_value="setup_error", reason="Network error")
+        provider._items["e1"] = HealthItem(
+            id="e1", name="Netatmo", provider=PROVIDER_INTEGRATIONS,
+            healthy=False, state="setup_error", severity="error",
+            reason="Timeout", failure_count=1, since=dt_util.utcnow(),
+        )
+        provider._previous_healthy["e1"] = False
+
+        provider._apply_state(entry, "setup_error")
+
+        on_change.assert_called_once()
+        item = on_change.call_args[0][0]
+        assert item.reason == "Network error"
+
+    def test_same_reason_does_not_trigger_notification(self):
+        """When reason does not change and health is stable, on_change must not be called."""
+        on_change = MagicMock()
+        provider = _make_provider()
+        provider._on_change = on_change
+
+        entry = _make_entry(entry_id="e1", state_value="setup_error", reason="Timeout")
+        provider._items["e1"] = HealthItem(
+            id="e1", name="Netatmo", provider=PROVIDER_INTEGRATIONS,
+            healthy=False, state="setup_error", severity="error",
+            reason="Timeout", failure_count=1, since=dt_util.utcnow(),
+        )
+        provider._previous_healthy["e1"] = False
+
+        provider._apply_state(entry, "setup_error")
+
+        on_change.assert_not_called()
