@@ -176,9 +176,61 @@ automation:
           {%- if trigger.event.data.reason %} — {{ trigger.event.data.reason }}{% endif %}
 ```
 
-### Example automation: notify with delay (recommended for devices)
+### Example automation: notify with delay using HA labels (recommended)
 
-Some devices briefly go `unavailable` and recover on their own (e.g. Z-Wave locks, cameras with slow responses). Adding a delay before notifying avoids spurious alerts while still catching real problems.
+Sentinel automatically assigns [HA labels](#ha-labels) to all its entities. This allows using a native `for:` delay — no active waiting, no blocked thread.
+
+```yaml
+automation:
+  alias: "Sentinel — Persistent notification"
+  triggers:
+    - trigger: state
+      entity_id: label_entities('sentinel_device')
+      to: "on"
+      for:
+        minutes: 1
+      id: problem_device
+    - trigger: state
+      entity_id: label_entities('sentinel_integration')
+      to: "on"
+      id: problem_integration
+    - trigger: state
+      entity_id: label_entities('sentinel_app')
+      to: "on"
+      id: problem_app
+    - trigger: state
+      entity_id: label_entities('sentinel')
+      to: "off"
+      id: resolved
+  actions:
+    - if:
+        - condition: trigger
+          id:
+            - problem_device
+            - problem_integration
+            - problem_app
+      then:
+        - action: persistent_notification.create
+          data:
+            title: "{{ trigger.to_state.attributes.friendly_name }} problem"
+            message: >
+              **State:** {{ trigger.to_state.attributes.state | replace('_', ' ') }}
+              {%- if trigger.to_state.attributes.reason %} — {{ trigger.to_state.attributes.reason }}{% endif %}
+              {%- if trigger.to_state.attributes.failure_count | int > 1 %} ({{ trigger.to_state.attributes.failure_count }}x){% endif %}
+            notification_id: "{{ trigger.to_state.entity_id }}"
+      else:
+        - action: persistent_notification.dismiss
+          data:
+            notification_id: "{{ trigger.to_state.entity_id }}"
+  mode: parallel
+  max: 10
+```
+
+> **Note:** The `for: minutes: 1` delay on devices avoids spurious alerts for transient `unavailable` states (e.g. Z-Wave locks, cameras). Integrations trigger immediately — the grace period in Sentinel already handles startup noise.
+
+### Example automation: notify with delay (event-based, without labels)
+
+If you prefer to use the event bus instead of state triggers:
 
 ```yaml
 automation:
@@ -204,6 +256,26 @@ automation:
           {{ trigger.event.data.state | replace('_', ' ') }}
           {%- if trigger.event.data.reason %} — {{ trigger.event.data.reason }}{% endif %}
   mode: parallel
+```
+
+---
+
+## HA Labels
+
+Sentinel automatically assigns HA labels to all its `binary_sensor` entities when they are created. Labels are created in the label registry if they don't exist yet.
+
+| Label | Entities |
+|---|---|
+| `sentinel` | All Sentinel binary_sensor entities |
+| `sentinel_integration` | Integration health entities only |
+| `sentinel_device` | Device health entities only |
+| `sentinel_app` | Application health entities only |
+
+This enables clean automations using `label_entities()` with native `for:` delays — no active waiting, no hardcoded entity IDs.
+
+```yaml
+entity_id: label_entities('sentinel_device')   # all device sensors
+entity_id: label_entities('sentinel')          # everything Sentinel monitors
 ```
 
 ---
