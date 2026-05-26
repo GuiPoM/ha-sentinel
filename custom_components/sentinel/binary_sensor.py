@@ -5,6 +5,7 @@ device_class=PROBLEM: on=problem detected, off=OK.
 """
 from __future__ import annotations
 
+import contextlib
 import logging
 
 from homeassistant.components.binary_sensor import (
@@ -13,16 +14,53 @@ from homeassistant.components.binary_sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import entity_registry as er, label_registry as lr
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN, SIGNAL_SENTINEL_UPDATE
+from .const import DOMAIN, PROVIDER_APPS, PROVIDER_DEVICES, PROVIDER_INTEGRATIONS, SIGNAL_SENTINEL_UPDATE
 from .coordinator import SentinelCoordinator
 from .entity_base import sentinel_device_info
 from .providers import HealthItem
 
 _LOGGER = logging.getLogger(__name__)
+
+# Label IDs assigned to Sentinel binary_sensor entities
+LABEL_SENTINEL = "sentinel"
+LABEL_INTEGRATION = "sentinel_integration"
+LABEL_DEVICE = "sentinel_device"
+LABEL_APP = "sentinel_app"
+
+# Map provider → specific label
+_PROVIDER_LABEL: dict[str, str] = {
+    PROVIDER_INTEGRATIONS: LABEL_INTEGRATION,
+    PROVIDER_DEVICES: LABEL_DEVICE,
+    PROVIDER_APPS: LABEL_APP,
+}
+
+# Label definitions: label_id → display name
+_LABEL_DEFINITIONS: dict[str, str] = {
+    LABEL_SENTINEL: "Sentinel",
+    LABEL_INTEGRATION: "Sentinel Integration",
+    LABEL_DEVICE: "Sentinel Device",
+    LABEL_APP: "Sentinel App",
+}
+
+
+@callback
+def _ensure_labels(hass: HomeAssistant, label_ids: set[str]) -> None:
+    """Create Sentinel labels in the label registry if they don't exist yet."""
+    label_reg = lr.async_get(hass)
+    for label_id in label_ids:
+        if label_reg.async_get_label(label_id) is not None:
+            continue
+        name = _LABEL_DEFINITIONS.get(label_id, label_id)
+        existing = label_reg.async_get_label_by_name(name)
+        if existing is not None:
+            continue
+        with contextlib.suppress(Exception):
+            label_reg.async_create(name)
 
 
 async def async_setup_entry(
@@ -102,7 +140,7 @@ class SentinelBinarySensor(BinarySensorEntity):
         return attrs
 
     async def async_added_to_hass(self) -> None:
-        """Subscribe to updates when entity is added."""
+        """Subscribe to updates and assign HA labels when entity is added."""
         self.async_on_remove(
             async_dispatcher_connect(
                 self.hass,
@@ -110,6 +148,28 @@ class SentinelBinarySensor(BinarySensorEntity):
                 self._handle_update,
             )
         )
+        await self._async_assign_labels()
+
+    async def _async_assign_labels(self) -> None:
+        """Create and assign sentinel labels to this entity in the registry."""
+        provider_label = _PROVIDER_LABEL.get(self._item.provider)
+        labels_to_assign = {LABEL_SENTINEL}
+        if provider_label:
+            labels_to_assign.add(provider_label)
+
+        # Ensure all required labels exist in the label registry
+        _ensure_labels(self.hass, labels_to_assign)
+
+        # Assign labels to this entity in the entity registry
+        ent_reg = er.async_get(self.hass)
+        entity_id = self.entity_id
+        if entity_id and (entry := ent_reg.async_get(entity_id)):
+            current_labels = entry.labels or set()
+            if not labels_to_assign.issubset(current_labels):
+                ent_reg.async_update_entity(
+                    entity_id,
+                    labels=current_labels | labels_to_assign,
+                )
 
     @callback
     def _handle_update(self, item: HealthItem) -> None:
