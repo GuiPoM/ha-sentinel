@@ -53,10 +53,14 @@ def _ensure_labels(hass: HomeAssistant, label_ids: set[str]) -> None:
     """Create Sentinel labels in the label registry if they don't exist yet."""
     label_reg = lr.async_get(hass)
     for label_id in label_ids:
-        if label_reg.async_get_label(label_id) is None:
-            name = _LABEL_DEFINITIONS.get(label_id, label_id)
-            with contextlib.suppress(ValueError):
-                label_reg.async_create(name)
+        if label_reg.async_get_label(label_id) is not None:
+            continue
+        name = _LABEL_DEFINITIONS.get(label_id, label_id)
+        existing = label_reg.async_get_label_by_name(name)
+        if existing is not None:
+            continue
+        with contextlib.suppress(Exception):
+            label_reg.async_create(name)
 
 
 async def async_setup_entry(

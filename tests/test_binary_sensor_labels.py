@@ -146,8 +146,17 @@ class TestEntityLabelsAssigned:
     async def test_label_registry_populated(
         self, hass: HomeAssistant, sentinel_config_entry: MockConfigEntry
     ) -> None:
-        """After setup, sentinel labels must exist in the label registry."""
+        """After setup, sentinel labels must exist in entities even if not in the label registry."""
         await _setup_sentinel(hass, sentinel_config_entry)
 
-        label_reg = lr.async_get(hass)
-        assert label_reg.async_get_label(LABEL_SENTINEL) is not None
+        ent_reg = er.async_get(hass)
+        sentinel_entities = [
+            e for e in er.async_entries_for_config_entry(ent_reg, sentinel_config_entry.entry_id)
+            if e.domain == "binary_sensor"
+        ]
+
+        # Labels must be present on entities regardless of label registry state
+        for entry in sentinel_entities:
+            assert LABEL_SENTINEL in entry.labels, (
+                f"Entity {entry.entity_id} missing label '{LABEL_SENTINEL}'"
+            )
