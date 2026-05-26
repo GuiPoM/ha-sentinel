@@ -11,5 +11,5 @@
   "issue_tracker": "https://github.com/GuiPoM/ha-sentinel/issues",
   "requirements": [],
   "single_config_entry": true,
-  "version": "0.7.2b1"
+  "version": "0.7.2"
 }
