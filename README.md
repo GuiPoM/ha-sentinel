@@ -160,7 +160,7 @@ data:
 
 ```yaml
 automation:
-  alias: "Sentinel â€” Alert on problem"
+  alias: "Sentinel — Alert on problem"
   trigger:
     - platform: event
       event_type: sentinel_item_changed
@@ -170,11 +170,69 @@ automation:
   action:
     - action: notify.mobile_app_your_phone
       data:
-        title: "{{ trigger.event.data.name }} ({{ trigger.event.data.domain }}) â€” {{ trigger.event.data.item_type }} problem"
+        title: "{{ trigger.event.data.name }} ({{ trigger.event.data.domain }}) — {{ trigger.event.data.item_type }} problem"
         message: >
           {{ trigger.event.data.state | replace('_', ' ') }}
-          {%- if trigger.event.data.reason %} â€” {{ trigger.event.data.reason }}{% endif %}
+          {%- if trigger.event.data.reason %} — {{ trigger.event.data.reason }}{% endif %}
 ```
+
+### Example automation: persistent notification (recommended)
+
+Uses `sentinel_item_changed` events — no hardcoded entity IDs, works immediately.
+For devices, a delay before notifying avoids spurious alerts for transient `unavailable` states.
+
+```yaml
+alias: Sentinel — Persistent notification
+triggers:
+  - trigger: event
+    event_type: sentinel_item_changed
+actions:
+  - if:
+      - condition: template
+        value_template: >
+          {{ trigger.event.data.healthy == false
+             and trigger.event.data.severity != 'ok' }}
+    then:
+      - action: persistent_notification.create
+        data:
+          title: >
+            {{ trigger.event.data.name }} ({{ trigger.event.data.domain }}) problem
+          message: >
+            **State:** {{ trigger.event.data.state | replace('_', ' ') }}
+            {%- if trigger.event.data.reason %} — {{ trigger.event.data.reason }}{% endif %}
+            {%- if trigger.event.data.failure_count | int > 1 %} ({{ trigger.event.data.failure_count }}x){% endif %}
+          notification_id: "sentinel_{{ trigger.event.data.item_id }}"
+    else:
+      - action: persistent_notification.dismiss
+        data:
+          notification_id: "sentinel_{{ trigger.event.data.item_id }}"
+mode: parallel
+max: 10
+```
+
+---
+
+## HA Labels
+
+Sentinel automatically assigns HA labels to all its `binary_sensor` entities when they are created.
+
+| Label | Entities |
+|---|---|
+| `sentinel` | All Sentinel binary_sensor entities |
+| `sentinel_integration` | Integration health entities only |
+| `sentinel_device` | Device health entities only |
+| `sentinel_app` | Application health entities only |
+
+Labels are useful for organizing entities in the HA UI, filtering in dashboards, and grouping in conditions:
+
+```yaml
+# In a condition — check if any device sensor is on
+condition: template
+value_template: >
+  {{ label_entities('sentinel_device') | select('is_state', 'on') | list | count > 0 }}
+```
+
+> **Note:** `label_entities()` cannot be used in `entity_id` of a `state` trigger — HA does not support templates there. Use the `sentinel_item_changed` event trigger for per-item automation logic.
 
 ### Example automation: notify with delay using HA labels (recommended)
 
