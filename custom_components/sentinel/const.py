@@ -13,6 +13,10 @@ CONF_GRACE_PERIOD = "grace_period"
 CONF_EXCLUDED_ENTRIES = "excluded_entries"
 CONF_FIRE_EVENTS = "fire_events"
 
+# Deprecated v1 keys — kept for async_migrate_entry only, do not use elsewhere
+CONF_IGNORED_DEVICE_SOURCES = "ignored_device_sources"
+CONF_IGNORED_DEVICE_IDS = "ignored_device_ids"
+
 # Configuration keys — device discovery (global opt-in)
 CONF_ENABLE_DEVICE_DISCOVERY = "enable_device_discovery"
 DEFAULT_ENABLE_DEVICE_DISCOVERY = False

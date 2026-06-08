@@ -40,7 +40,6 @@
       "initiate_flow": {
         "user": "Ajouter un appareil"
       },
-      "entry_title": "{title}",
       "step": {
         "user": {
           "title": "Ajouter un appareil",

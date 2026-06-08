@@ -40,7 +40,6 @@
       "initiate_flow": {
         "user": "Add a device"
       },
-      "entry_title": "{title}",
       "step": {
         "user": {
           "title": "Add device",
