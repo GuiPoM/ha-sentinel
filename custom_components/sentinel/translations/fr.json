@@ -37,6 +37,7 @@
   "config_subentries": {
     "device": {
       "title": "Surveillance d'appareil",
+      "entry_type": "device",
       "initiate_flow": {
         "user": "Ajouter un appareil"
       },
