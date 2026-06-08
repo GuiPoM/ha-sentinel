@@ -7,14 +7,16 @@ import voluptuous as vol
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall, callback
-from homeassistant.helpers import config_validation as cv, entity_registry as er
+from homeassistant.helpers import config_validation as cv, device_registry as dr, entity_registry as er
 
 from .const import (
     CONF_ENABLE_DEVICE_DISCOVERY,
     CONF_IGNORED_DEVICE_IDS,
     CONF_IGNORED_DEVICE_SOURCES,
+    CONF_SUBENTRY_DEVICE_ID,
     DEFAULT_ENABLE_DEVICE_DISCOVERY,
     DOMAIN,
+    SUBENTRY_TYPE_DEVICE,
 )
 from .coordinator import SentinelCoordinator
 
@@ -79,8 +81,39 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
     return False
 
 
+async def _async_cleanup_orphaned_subentries(
+    hass: HomeAssistant, entry: ConfigEntry
+) -> None:
+    """Remove device subentries whose device no longer exists in the registry.
+
+    Called at setup time. If a user removes a physical device (or replaces it
+    with a new one that gets a different device_id), the subentry becomes a
+    stale reference. We silently drop it rather than leaving dead config.
+    """
+    dev_reg = dr.async_get(hass)
+    to_remove = [
+        subentry
+        for subentry in entry.subentries.values()
+        if subentry.subentry_type == SUBENTRY_TYPE_DEVICE
+        and (
+            device_id := subentry.data.get(CONF_SUBENTRY_DEVICE_ID)
+        )
+        and dev_reg.async_get(device_id) is None
+    ]
+    for subentry in to_remove:
+        _LOGGER.info(
+            "Sentinel: removing orphaned subentry '%s' — device %s no longer exists",
+            subentry.title,
+            subentry.data.get(CONF_SUBENTRY_DEVICE_ID),
+        )
+        hass.config_entries.async_remove_subentry(entry, subentry)
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up HA Sentinel from a config entry."""
+    # Remove subentries whose device no longer exists in the registry
+    await _async_cleanup_orphaned_subentries(hass, entry)
+
     config = {**entry.data, **entry.options}
     subentries = list(entry.subentries.values())
 
