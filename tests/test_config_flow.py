@@ -5,13 +5,13 @@ from unittest.mock import patch
 
 from custom_components.sentinel.const import (
     CONF_APPS_POLL_INTERVAL,
+    CONF_ENABLE_DEVICE_DISCOVERY,
     CONF_EXCLUDED_ENTRIES,
     CONF_FIRE_EVENTS,
     CONF_GRACE_PERIOD,
-    CONF_IGNORED_DEVICE_IDS,
-    CONF_IGNORED_DEVICE_SOURCES,
     CONF_WATCH_STOPPED_ADDONS,
     DEFAULT_APPS_POLL_INTERVAL,
+    DEFAULT_ENABLE_DEVICE_DISCOVERY,
     DEFAULT_FIRE_EVENTS,
     DEFAULT_GRACE_PERIOD,
     DEFAULT_WATCH_STOPPED_ADDONS,
@@ -47,10 +47,12 @@ async def test_config_flow_creates_entry_directly(hass: HomeAssistant, mock_setu
     assert options[CONF_FIRE_EVENTS] == DEFAULT_FIRE_EVENTS
     assert options[CONF_GRACE_PERIOD] == DEFAULT_GRACE_PERIOD
     assert options[CONF_EXCLUDED_ENTRIES] == []
-    assert options[CONF_IGNORED_DEVICE_SOURCES] == []
-    assert options[CONF_IGNORED_DEVICE_IDS] == []
     assert options[CONF_WATCH_STOPPED_ADDONS] == DEFAULT_WATCH_STOPPED_ADDONS
     assert options[CONF_APPS_POLL_INTERVAL] == DEFAULT_APPS_POLL_INTERVAL
+    assert options[CONF_ENABLE_DEVICE_DISCOVERY] == DEFAULT_ENABLE_DEVICE_DISCOVERY
+    # Removed options: CONF_IGNORED_DEVICE_SOURCES, CONF_IGNORED_DEVICE_IDS
+    assert "ignored_device_sources" not in options
+    assert "ignored_device_ids" not in options
 
 
 async def test_config_flow_aborts_if_already_configured(hass: HomeAssistant, mock_setup_entry):
@@ -90,8 +92,7 @@ async def test_options_flow_updates_options(hass: HomeAssistant, mock_setup_entr
             CONF_FIRE_EVENTS: False,
             CONF_GRACE_PERIOD: 60,
             CONF_EXCLUDED_ENTRIES: [],
-            CONF_IGNORED_DEVICE_SOURCES: ["mobile_app"],
-            CONF_IGNORED_DEVICE_IDS: [],
+            CONF_ENABLE_DEVICE_DISCOVERY: True,
             CONF_WATCH_STOPPED_ADDONS: True,
             CONF_APPS_POLL_INTERVAL: 120,
         },
@@ -100,6 +101,9 @@ async def test_options_flow_updates_options(hass: HomeAssistant, mock_setup_entr
     assert result["type"] == FlowResultType.CREATE_ENTRY
     assert entry.options[CONF_GRACE_PERIOD] == 60
     assert entry.options[CONF_FIRE_EVENTS] is False
-    assert entry.options[CONF_IGNORED_DEVICE_SOURCES] == ["mobile_app"]
+    assert entry.options[CONF_ENABLE_DEVICE_DISCOVERY] is True
     assert entry.options[CONF_WATCH_STOPPED_ADDONS] is True
     assert entry.options[CONF_APPS_POLL_INTERVAL] == 120
+    # Removed options must not be present
+    assert "ignored_device_sources" not in entry.options
+    assert "ignored_device_ids" not in entry.options

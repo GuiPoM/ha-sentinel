@@ -40,11 +40,11 @@ def _make_state(entity_id="light.bandeau", state="off", attributes=None):
     return s
 
 
-def _make_provider(hass=None):
+def _make_provider(hass=None, watched_ids=None):
     """Create a DevicesProvider with a mock hass."""
     if hass is None:
         hass = _make_hass()
-    return DevicesProvider(hass)
+    return DevicesProvider(hass, watched_device_ids=set(watched_ids or []))
 
 
 def _patch_registries(provider, device, entities):

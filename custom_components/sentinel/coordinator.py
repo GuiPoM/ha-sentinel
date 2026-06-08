@@ -16,8 +16,9 @@ from .const import (
     CONF_EXCLUDED_ENTRIES,
     CONF_FIRE_EVENTS,
     CONF_GRACE_PERIOD,
-    CONF_IGNORED_DEVICE_IDS,
-    CONF_IGNORED_DEVICE_SOURCES,
+    CONF_SUBENTRY_DEVICE_ID,
+    CONF_SUBENTRY_GRACE_PERIOD,
+    CONF_SUBENTRY_IGNORED,
     CONF_WATCH_STOPPED_ADDONS,
     DEFAULT_APPS_POLL_INTERVAL,
     DEFAULT_FIRE_EVENTS,
@@ -28,6 +29,7 @@ from .const import (
     PROVIDER_DEVICES,
     PROVIDER_INTEGRATIONS,
     SIGNAL_SENTINEL_UPDATE,
+    SUBENTRY_TYPE_DEVICE,
 )
 from .providers import HealthItem, HealthProvider
 from .providers.apps import AppsProvider
@@ -40,10 +42,16 @@ _LOGGER = logging.getLogger(__name__)
 class SentinelCoordinator:
     """Orchestrates all Sentinel providers."""
 
-    def __init__(self, hass: HomeAssistant, config: dict) -> None:
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        config: dict,
+        subentries: list | None = None,
+    ) -> None:
         """Initialize the coordinator."""
         self.hass = hass
         self._config = config
+        self._subentries: list = list(subentries or [])
         self._providers: dict[str, HealthProvider] = {}
 
     async def async_setup(self) -> None:
@@ -60,11 +68,24 @@ class SentinelCoordinator:
         self._providers[PROVIDER_INTEGRATIONS] = integrations_provider
         await integrations_provider.async_setup(self._on_item_changed)
 
-        # v2: devices provider
+        # v2: devices provider — only watches devices with active (non-ignored) subentries
+        watched_device_ids: set[str] = set()
+        grace_period_overrides: dict[str, int | None] = {}
+        for subentry in self._subentries:
+            if subentry.subentry_type != SUBENTRY_TYPE_DEVICE:
+                continue
+            data = subentry.data
+            device_id = data.get(CONF_SUBENTRY_DEVICE_ID)
+            ignored = data.get(CONF_SUBENTRY_IGNORED, False)
+            if device_id and not ignored:
+                watched_device_ids.add(device_id)
+                # None means inherit global grace period
+                grace_period_overrides[device_id] = data.get(CONF_SUBENTRY_GRACE_PERIOD)
+
         devices_provider = DevicesProvider(
             self.hass,
-            ignored_device_sources=set(self._config.get(CONF_IGNORED_DEVICE_SOURCES, [])),
-            ignored_device_ids=set(self._config.get(CONF_IGNORED_DEVICE_IDS, [])),
+            watched_device_ids=watched_device_ids,
+            grace_period_overrides=grace_period_overrides,
             integration_problem_checker=self._device_integration_has_problem,
         )
         self._providers[PROVIDER_DEVICES] = devices_provider

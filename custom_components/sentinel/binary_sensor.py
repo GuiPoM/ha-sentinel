@@ -21,7 +21,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN, PROVIDER_APPS, PROVIDER_DEVICES, PROVIDER_INTEGRATIONS, SIGNAL_SENTINEL_UPDATE
 from .coordinator import SentinelCoordinator
-from .entity_base import sentinel_device_info
+from .entity_base import device_subentry_device_info, sentinel_device_info
 from .providers import HealthItem
 
 _LOGGER = logging.getLogger(__name__)
@@ -115,7 +115,10 @@ class SentinelBinarySensor(BinarySensorEntity):
 
     @property
     def device_info(self) -> DeviceInfo:
-        """Group all entities under a single Sentinel device."""
+        """Return device info — device entities link to their physical HA device."""
+        if self._item.provider == PROVIDER_DEVICES:
+            device_id = self._item.extra.get("device_id", self._item.id)
+            return device_subentry_device_info(self.hass, device_id)
         return sentinel_device_info()
 
     @property

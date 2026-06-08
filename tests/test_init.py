@@ -6,6 +6,8 @@ from unittest.mock import MagicMock
 from custom_components.sentinel.const import (
     CONF_FIRE_EVENTS,
     CONF_GRACE_PERIOD,
+    CONF_IGNORED_DEVICE_IDS,
+    CONF_IGNORED_DEVICE_SOURCES,
     DOMAIN,
     EVENT_ITEM_CHANGED,
     PROVIDER_DEVICES,
@@ -266,3 +268,47 @@ async def test_binary_sensor_has_provider_attribute(
         assert "state" in entity.attributes
         assert "severity" in entity.attributes
         assert "failure_count" in entity.attributes
+
+
+# ---------------------------------------------------------------------------
+# Migration
+# ---------------------------------------------------------------------------
+
+
+async def test_migrate_entry_v1_to_v2(hass: HomeAssistant) -> None:
+    """Test that v1 config entries are migrated to v2 correctly.
+
+    v1 had ignored_device_sources and ignored_device_ids.
+    v2 removes those keys and adds enable_device_discovery.
+    """
+    from custom_components.sentinel import async_migrate_entry
+    from custom_components.sentinel.const import CONF_ENABLE_DEVICE_DISCOVERY
+
+    v1_entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Sentinel",
+        data={},
+        options={
+            CONF_GRACE_PERIOD: 30,
+            CONF_FIRE_EVENTS: True,
+            CONF_IGNORED_DEVICE_SOURCES: ["mobile_app"],
+            CONF_IGNORED_DEVICE_IDS: ["dev_abc123"],
+        },
+        entry_id="test_sentinel_v1",
+        unique_id=DOMAIN,
+        version=1,
+    )
+    v1_entry.add_to_hass(hass)
+
+    result = await async_migrate_entry(hass, v1_entry)
+
+    assert result is True
+    assert v1_entry.version == 2
+    assert CONF_IGNORED_DEVICE_SOURCES not in v1_entry.options
+    assert CONF_IGNORED_DEVICE_IDS not in v1_entry.options
+    assert CONF_ENABLE_DEVICE_DISCOVERY in v1_entry.options
+    assert v1_entry.options[CONF_ENABLE_DEVICE_DISCOVERY] is False
+    # Kept options are preserved
+    assert v1_entry.options[CONF_GRACE_PERIOD] == 30
+    assert v1_entry.options[CONF_FIRE_EVENTS] is True
+

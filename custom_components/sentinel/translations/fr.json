@@ -4,7 +4,7 @@
     "step": {
       "user": {
         "title": "Sentinel",
-        "description": "Sentinel va surveiller vos intégrations, appareils et applications avec des réglages par défaut. Vous pouvez ajuster tous les paramètres après l'installation."
+        "description": "Sentinel va surveiller vos intégrations et applications avec des réglages par défaut. Vous pouvez ajuster tous les paramètres après l'installation. Pour surveiller des appareils physiques, utilisez le bouton '+' sur la page de l'intégration Sentinel."
       }
     },
     "abort": {
@@ -19,20 +19,59 @@
           "fire_events": "Émettre des événements sur le bus HA",
           "grace_period": "Délai de grâce (secondes)",
           "excluded_entries": "Intégrations exclues",
-          "ignored_device_sources": "Sources d'appareils ignorées",
-          "ignored_device_ids": "Appareils ignorés",
+          "enable_device_discovery": "Activer la découverte automatique des appareils",
           "watch_stopped_addons": "Signaler les applications arrêtées en avertissement",
           "apps_poll_interval": "Intervalle de sondage des applications (secondes)"
         },
         "data_description": {
           "fire_events": "Émet un événement `sentinel_item_changed` sur le bus HA à chaque changement d'état. Nécessaire pour les automations.",
-          "grace_period": "Durée pendant laquelle une intégration doit rester en erreur avant d'être signalée (0 = immédiat).",
-          "excluded_entries": "Intégrations à exclure de la surveillance. Seul l'état de l'intégration est exclu — ses appareils physiques restent surveillés.",
-          "ignored_device_sources": "Sources d'appareils à exclure de la surveillance (ex : mobile_app, cast). Seuls les appareils de ces sources sont exclus — l'état de l'intégration elle-même reste surveillé. Les sources sont listées depuis votre installation.",
-          "ignored_device_ids": "Appareils spécifiques à exclure de la surveillance, quelle que soit leur source.",
+          "grace_period": "Durée pendant laquelle une intégration doit rester en erreur avant d'être signalée (0 = immédiat). Utilisé comme valeur par défaut pour tous les appareils surveillés.",
+          "excluded_entries": "Intégrations à exclure de la surveillance.",
+          "enable_device_discovery": "Si activé, Sentinel proposera un flow de configuration pour chaque appareil éligible non encore surveillé. Vous confirmez chaque appareil individuellement.",
           "watch_stopped_addons": "Si activé, les applications arrêtées sont signalées en avertissement. Par défaut, un arrêt est considéré intentionnel.",
-          "apps_poll_interval": "Fréquence à laquelle Sentinel interroge le Supervisor pour l'état des applications (30-300 secondes, défaut 60)."
+          "apps_poll_interval": "Fréquence à laquelle Sentinel interroge le Supervisor pour l'état des applications (30–300 secondes, défaut 60)."
         }
+      }
+    }
+  },
+  "config_subentries": {
+    "device": {
+      "title": "Surveillance d'appareil",
+      "initiate_flow": {
+        "user": "Ajouter un appareil"
+      },
+      "entry_title": "{title}",
+      "step": {
+        "user": {
+          "title": "Ajouter un appareil",
+          "description": "Sélectionnez un appareil physique à surveiller. Sentinel le signalera comme problème dès qu'une de ses entités devient indisponible.",
+          "data": {
+            "device_id": "Appareil",
+            "grace_period": "Délai de grâce override (secondes)",
+            "note": "Note (optionnel)"
+          },
+          "data_description": {
+            "grace_period": "Laissez vide pour utiliser le délai de grâce global défini dans les options Sentinel.",
+            "note": "Note libre sur cet appareil. Non utilisée pour la surveillance."
+          }
+        },
+        "reconfigure": {
+          "title": "Reconfigurer l'appareil",
+          "data": {
+            "grace_period": "Délai de grâce override (secondes)",
+            "ignored": "Ignorer cet appareil",
+            "note": "Note (optionnel)"
+          },
+          "data_description": {
+            "grace_period": "Laissez vide pour utiliser le délai de grâce global défini dans les options Sentinel.",
+            "ignored": "Si activé, cet appareil est exclu de la surveillance mais conservé dans la liste.",
+            "note": "Note libre sur cet appareil."
+          }
+        }
+      },
+      "abort": {
+        "no_eligible_devices": "Aucun appareil éligible trouvé. Tous les appareils physiques avec des entités surveillées sont déjà suivis.",
+        "already_configured": "Cet appareil est déjà surveillé par Sentinel."
       }
     }
   },

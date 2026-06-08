@@ -9,7 +9,13 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.helpers import config_validation as cv, entity_registry as er
 
-from .const import DOMAIN
+from .const import (
+    CONF_ENABLE_DEVICE_DISCOVERY,
+    CONF_IGNORED_DEVICE_IDS,
+    CONF_IGNORED_DEVICE_SOURCES,
+    DEFAULT_ENABLE_DEVICE_DISCOVERY,
+    DOMAIN,
+)
 from .coordinator import SentinelCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -34,18 +40,57 @@ SERVICE_PURGE = "purge"
 SERVICE_PURGE_SCHEMA = vol.Schema({})
 
 
+async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
+    """Migrate config entry to the current version.
+
+    v1 → v2: Remove ignored_device_sources and ignored_device_ids (replaced by
+    device subentries). Add enable_device_discovery option. Breaking change:
+    previously ignored/monitored devices must be re-added via subentries.
+    """
+    _LOGGER.debug(
+        "Migrating Sentinel config entry from version %s", config_entry.version
+    )
+
+    if config_entry.version == 1:
+        # Remove deprecated device-exclusion options — no longer supported.
+        # Users must re-add their devices via subentries (opt-in discovery).
+        new_options = {
+            k: v
+            for k, v in config_entry.options.items()
+            if k not in (CONF_IGNORED_DEVICE_SOURCES, CONF_IGNORED_DEVICE_IDS)
+        }
+        new_options.setdefault(CONF_ENABLE_DEVICE_DISCOVERY, DEFAULT_ENABLE_DEVICE_DISCOVERY)
+
+        hass.config_entries.async_update_entry(
+            config_entry,
+            options=new_options,
+            version=2,
+        )
+        _LOGGER.info(
+            "Sentinel: migrated config entry to v2 — device subentries architecture. "
+            "Previously monitored devices must be re-added via the integration page."
+        )
+        return True
+
+    _LOGGER.error(
+        "Sentinel: cannot migrate from version %s — downgrade not supported",
+        config_entry.version,
+    )
+    return False
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up HA Sentinel from a config entry."""
     config = {**entry.data, **entry.options}
+    subentries = list(entry.subentries.values())
 
-    coordinator = SentinelCoordinator(hass, config)
+    coordinator = SentinelCoordinator(hass, config, subentries=subentries)
     await coordinator.async_setup()
 
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
     # Clean up orphaned entities BEFORE setting up platforms
-    # so they are not re-added by the platform setup
     _cleanup_orphaned_entities(hass, entry, coordinator)
 
     # Forward setup to platforms
@@ -68,17 +113,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         """Remove ALL Sentinel entities from the registry — no reload."""
         registry = er.async_get(hass)
 
-        # Collect all entities created by this integration
         to_remove = [
             e.entity_id
             for e in list(registry.entities.values())
             if e.platform == DOMAIN
         ]
 
-        # Unload platforms so entities are detached from HA state machine
         await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
-        # Remove from registry
         for eid in to_remove:
             if eid in registry.entities:
                 registry.async_remove(eid)
@@ -102,8 +144,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         DOMAIN, SERVICE_PURGE, handle_purge, schema=SERVICE_PURGE_SCHEMA
     )
 
-    # Re-apply config when options are updated
-    entry.async_on_unload(entry.add_update_listener(_async_update_options))
+    # Reload the entry whenever subentries are added/removed or options change.
+    # This is the standard pattern (Battery Notes, etc.) — no partial reload.
+    entry.async_on_unload(entry.add_update_listener(_async_update_listener))
 
     _LOGGER.info("Sentinel set up successfully.")
     return True
@@ -133,8 +176,8 @@ def _cleanup_orphaned_entities(
             registry.async_remove(entity_entry.entity_id)
 
 
-async def _async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Handle options update — reload the config entry."""
+async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Handle options update or subentry change — reload the config entry."""
     await hass.config_entries.async_reload(entry.entry_id)
 
 

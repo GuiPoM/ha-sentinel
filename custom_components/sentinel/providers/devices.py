@@ -76,24 +76,22 @@ def _is_eligible(entity) -> bool:
 class DevicesProvider(HealthProvider):
     """Health provider for physical HA devices.
 
+    Monitors only devices explicitly confirmed via subentries (watched_device_ids).
     A device is unhealthy when at least one of its monitored entities is
-    unavailable. No silence detection — unavailable is the only reliable
-    signal that a device has lost connectivity with its hub.
+    unavailable — the reliable signal that the device is no longer reachable.
     """
 
     def __init__(
         self,
         hass: HomeAssistant,
-        ignored_device_sources: set[str] | None = None,
-        ignored_device_ids: set[str] | None = None,
+        watched_device_ids: set[str] | None = None,
+        grace_period_overrides: dict[str, int | None] | None = None,
         integration_problem_checker: Callable[[str], bool] | None = None,
     ) -> None:
         """Initialize the devices provider."""
         super().__init__(hass)
-        self._ignored_sources: set[str] = {
-            s.upper() for s in (ignored_device_sources or set())
-        }
-        self._ignored_device_ids: set[str] = ignored_device_ids or set()
+        self._watched_device_ids: set[str] = watched_device_ids or set()
+        self._grace_period_overrides: dict[str, int | None] = grace_period_overrides or {}
         self._integration_problem_checker = integration_problem_checker
         self._on_change: Callable[[HealthItem], None] | None = None
         self._unsub_state: Callable | None = None
@@ -113,26 +111,8 @@ class DevicesProvider(HealthProvider):
         return "Devices"
 
     def _should_watch_device(self, device_id: str) -> bool:
-        """Return True if this device should be monitored."""
-        if device_id in self._ignored_device_ids:
-            return False
-        source = _get_device_source(self.hass, device_id)
-        if source in self._ignored_sources:
-            return False
-        # Skip devices whose config entries are all disabled in HA
-        # (e.g. integration disabled by user — its devices are intentionally off)
-        dev_reg = dr.async_get(self.hass)
-        device = dev_reg.async_get(device_id)
-        if device is not None:
-            config_entries = set(device.config_entries) if device.config_entries else set()
-            if config_entries:
-                entries = self.hass.config_entries
-                if all(
-                    (e := entries.async_get_entry(eid)) is not None and e.disabled_by is not None
-                    for eid in config_entries
-                ):
-                    return False
-        return True
+        """Return True if this device has an active (non-ignored) subentry."""
+        return device_id in self._watched_device_ids
 
     def _integration_has_problem(self, device_id: str) -> bool:
         """Return True if the integration owning this device already has a problem."""
@@ -398,6 +378,7 @@ class DevicesProvider(HealthProvider):
                     "source": source,
                     "unavailable_entities": [],
                     "device_url": f"/config/devices/device/{device_id}",
+                    "grace_period_override": self._grace_period_overrides.get(device_id),
                 },
             )
 
@@ -439,5 +420,6 @@ class DevicesProvider(HealthProvider):
                 "source": source,
                 "unavailable_entities": unavailable_entities,
                 "device_url": f"/config/devices/device/{device_id}",
+                "grace_period_override": self._grace_period_overrides.get(device_id),
             },
         )

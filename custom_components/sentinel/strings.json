@@ -4,7 +4,7 @@
     "step": {
       "user": {
         "title": "Sentinel",
-        "description": "Sentinel will start monitoring your integrations, devices and applications with sensible defaults. You can adjust all settings after setup."
+        "description": "Sentinel will start monitoring your integrations and applications with sensible defaults. You can adjust all settings after setup. To monitor physical devices, use the '+' button on the Sentinel integration page."
       }
     },
     "abort": {
@@ -19,20 +19,59 @@
           "fire_events": "Fire events on the HA bus",
           "grace_period": "Grace period (seconds)",
           "excluded_entries": "Excluded integrations",
-          "ignored_device_sources": "Ignored device sources",
-          "ignored_device_ids": "Ignored devices",
+          "enable_device_discovery": "Enable automatic device discovery",
           "watch_stopped_addons": "Report stopped applications as warning",
           "apps_poll_interval": "Application poll interval (seconds)"
         },
         "data_description": {
           "fire_events": "Fire a `sentinel_item_changed` event on the HA event bus on every state change. Required for automations.",
-          "grace_period": "How long an integration must remain in a failed state before being reported (0 = immediate).",
+          "grace_period": "How long an integration must remain in a failed state before being reported (0 = immediate). Used as the default for all monitored devices.",
           "excluded_entries": "Integrations to exclude from monitoring.",
-          "ignored_device_sources": "Device sources to exclude from monitoring (e.g. mobile_app, cast). Sources are listed from your current installation.",
-          "ignored_device_ids": "Specific devices to exclude from monitoring.",
+          "enable_device_discovery": "When enabled, Sentinel will propose a monitoring flow for each eligible device not yet tracked. You confirm each device individually.",
           "watch_stopped_addons": "When enabled, stopped applications are reported as warnings. By default a stopped application is considered intentional.",
           "apps_poll_interval": "How often Sentinel queries the Supervisor for application states (30–300 seconds, default 60)."
         }
+      }
+    }
+  },
+  "config_subentries": {
+    "device": {
+      "title": "Device monitoring",
+      "initiate_flow": {
+        "user": "Add a device"
+      },
+      "entry_title": "{title}",
+      "step": {
+        "user": {
+          "title": "Add device",
+          "description": "Select a physical device to monitor. Sentinel will report it as a problem when any of its entities become unavailable.",
+          "data": {
+            "device_id": "Device",
+            "grace_period": "Grace period override (seconds)",
+            "note": "Note (optional)"
+          },
+          "data_description": {
+            "grace_period": "Leave empty to use the global grace period defined in Sentinel options.",
+            "note": "A free-form note about this device. Not used for monitoring."
+          }
+        },
+        "reconfigure": {
+          "title": "Reconfigure device",
+          "data": {
+            "grace_period": "Grace period override (seconds)",
+            "ignored": "Ignore this device",
+            "note": "Note (optional)"
+          },
+          "data_description": {
+            "grace_period": "Leave empty to use the global grace period defined in Sentinel options.",
+            "ignored": "When enabled, this device is excluded from monitoring but kept in the list.",
+            "note": "A free-form note about this device."
+          }
+        }
+      },
+      "abort": {
+        "no_eligible_devices": "No eligible devices found. All physical devices with monitored entities are already tracked.",
+        "already_configured": "This device is already monitored by Sentinel."
       }
     }
   },

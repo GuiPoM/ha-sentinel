@@ -168,47 +168,33 @@ class TestGetDeviceSource:
 # ---------------------------------------------------------------------------
 
 class TestShouldWatchDevice:
-    """Test DevicesProvider._should_watch_device."""
+    """Test DevicesProvider._should_watch_device.
 
-    def _make_provider(self, ignored_sources=None, ignored_ids=None):
+    In v0.8.0, _should_watch_device is a simple membership check against
+    the watched_device_ids set passed at construction (populated from subentries).
+    """
+
+    def _make_provider(self, watched_ids=None):
         hass = MagicMock()
         return DevicesProvider(
             hass,
-            ignored_device_sources=set(ignored_sources or []),
-            ignored_device_ids=set(ignored_ids or []),
+            watched_device_ids=set(watched_ids or []),
         )
 
-    def test_normal_device_is_watched(self):
-        provider = self._make_provider()
-        device = MagicMock()
-        device.identifiers = {("hue", "abc")}
-        device.config_entries = set()  # no config entries — not filtered
-        dr_mock = MagicMock()
-        dr_mock.async_get.return_value = device
-        with patch("custom_components.sentinel.providers.devices.dr.async_get", return_value=dr_mock):
-            assert provider._should_watch_device("device_123") is True
+    def test_device_in_watched_set_is_watched(self):
+        provider = self._make_provider(watched_ids=["device_123"])
+        assert provider._should_watch_device("device_123") is True
 
-    def test_ignored_device_id_is_not_watched(self):
-        provider = self._make_provider(ignored_ids=["device_123"])
+    def test_device_not_in_watched_set_is_not_watched(self):
+        provider = self._make_provider(watched_ids=[])
         assert provider._should_watch_device("device_123") is False
 
-    def test_ignored_source_is_not_watched(self):
-        provider = self._make_provider(ignored_sources=["mobile_app"])
-        device = MagicMock()
-        device.identifiers = {("mobile_app", "abc")}
-        device.config_entries = set()
-        dr_mock = MagicMock()
-        dr_mock.async_get.return_value = device
-        with patch("custom_components.sentinel.providers.devices.dr.async_get", return_value=dr_mock):
-            assert provider._should_watch_device("device_123") is False
+    def test_different_device_is_not_watched(self):
+        provider = self._make_provider(watched_ids=["device_456"])
+        assert provider._should_watch_device("device_123") is False
 
-    def test_ignored_source_case_insensitive(self):
-        """Sources are stored uppercase internally."""
-        provider = self._make_provider(ignored_sources=["mobile_app"])
-        device = MagicMock()
-        device.identifiers = {("mobile_app", "abc")}
-        device.config_entries = set()
-        dr_mock = MagicMock()
-        dr_mock.async_get.return_value = device
-        with patch("custom_components.sentinel.providers.devices.dr.async_get", return_value=dr_mock):
-            assert provider._should_watch_device("device_123") is False
+    def test_multiple_watched_devices(self):
+        provider = self._make_provider(watched_ids=["device_123", "device_456"])
+        assert provider._should_watch_device("device_123") is True
+        assert provider._should_watch_device("device_456") is True
+        assert provider._should_watch_device("device_789") is False
