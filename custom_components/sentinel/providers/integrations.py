@@ -158,6 +158,8 @@ class IntegrationsProvider(HealthProvider):
 
     async def async_unload(self) -> None:
         """Unload provider and cancel pending timers."""
+        self._stopped = True
+        self._on_change = None
         if self._unsubscribe:
             self._unsubscribe()
             self._unsubscribe = None
@@ -180,6 +182,8 @@ class IntegrationsProvider(HealthProvider):
         self, change: ConfigEntryChange, entry: ConfigEntry
     ) -> None:
         """Handle a config entry change signal."""
+        if self._stopped or self.hass.is_stopping:
+            return
         entry_id = entry.entry_id
 
         if change == ConfigEntryChange.REMOVED:
@@ -232,6 +236,8 @@ class IntegrationsProvider(HealthProvider):
         @callback
         def _fire() -> None:
             self._pending_timers.pop(entry_id, None)
+            if self._stopped or self.hass.is_stopping:
+                return
             # Re-check: state may have recovered during grace period
             current_entry = self.hass.config_entries.async_get_entry(entry_id)
             if current_entry is None:

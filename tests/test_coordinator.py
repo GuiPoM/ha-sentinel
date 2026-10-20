@@ -111,7 +111,7 @@ class TestOnItemChanged:
         return item
 
     def test_fires_bus_event_when_fire_events_enabled(self):
-        hass = MagicMock()
+        hass = MagicMock(is_stopping=False)
         coordinator = SentinelCoordinator(hass, {CONF_FIRE_EVENTS: True})
         item = self._make_item()
 
@@ -126,7 +126,7 @@ class TestOnItemChanged:
         assert data["item_type"] == "integration"
 
     def test_does_not_fire_bus_event_when_disabled(self):
-        hass = MagicMock()
+        hass = MagicMock(is_stopping=False)
         coordinator = SentinelCoordinator(hass, {CONF_FIRE_EVENTS: False})
         item = self._make_item()
 
@@ -135,7 +135,7 @@ class TestOnItemChanged:
         hass.bus.async_fire.assert_not_called()
 
     def test_item_type_is_device_for_devices_provider(self):
-        hass = MagicMock()
+        hass = MagicMock(is_stopping=False)
         coordinator = SentinelCoordinator(hass, {CONF_FIRE_EVENTS: True})
         item = self._make_item(provider=PROVIDER_DEVICES)
         item.extra = {"source": "HUE"}
@@ -146,7 +146,7 @@ class TestOnItemChanged:
         assert data["item_type"] == "device"
 
     def test_domain_falls_back_to_source_for_devices(self):
-        hass = MagicMock()
+        hass = MagicMock(is_stopping=False)
         coordinator = SentinelCoordinator(hass, {CONF_FIRE_EVENTS: True})
         item = self._make_item(provider=PROVIDER_DEVICES)
         item.extra = {"domain": "", "source": "HUE"}
@@ -175,7 +175,7 @@ class TestResetFailureCount:
 
     def test_reset_failure_count_fires_bus_event(self):
         """After reset, _on_item_changed must be called so bus event is fired."""
-        hass = MagicMock()
+        hass = MagicMock(is_stopping=False)
         coordinator = SentinelCoordinator(hass, {CONF_FIRE_EVENTS: True})
 
         item = self._make_item(failure_count=3)
@@ -195,7 +195,7 @@ class TestResetFailureCount:
 
     def test_reset_failure_count_unknown_item_is_noop(self):
         """When item_id is not found in any provider, nothing should happen."""
-        hass = MagicMock()
+        hass = MagicMock(is_stopping=False)
         coordinator = SentinelCoordinator(hass, {CONF_FIRE_EVENTS: True})
 
         mock_provider = MagicMock()

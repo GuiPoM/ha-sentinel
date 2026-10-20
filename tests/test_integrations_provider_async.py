@@ -51,7 +51,7 @@ def _make_entry(
 def _make_provider(hass=None, excluded=None):
     """Create a DevicesProvider with a mock hass."""
     if hass is None:
-        hass = MagicMock()
+        hass = MagicMock(is_stopping=False)
     return IntegrationsProvider(
         hass,
         excluded_entry_ids=set(excluded or []),

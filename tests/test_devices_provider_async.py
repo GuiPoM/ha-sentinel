@@ -12,7 +12,7 @@ from homeassistant.util import dt as dt_util
 
 def _make_hass():
     """Create a minimal mock hass."""
-    return MagicMock()
+    return MagicMock(is_stopping=False)
 
 
 def _make_device(device_id="device_123", name="Bandeau", identifiers=None):

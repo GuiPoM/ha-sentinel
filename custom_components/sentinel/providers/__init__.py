@@ -55,6 +55,7 @@ class HealthProvider(ABC):
         """Initialize the provider."""
         self.hass = hass
         self._items: dict[str, HealthItem] = {}
+        self._stopped = False
 
     @property
     @abstractmethod
