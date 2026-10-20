@@ -12,6 +12,7 @@ NAME = "Sentinel"
 CONF_GRACE_PERIOD = "grace_period"
 CONF_EXCLUDED_ENTRIES = "excluded_entries"
 CONF_FIRE_EVENTS = "fire_events"
+CONF_MAX_PROBLEMS = "max_problems"
 
 # Configuration keys — devices provider
 CONF_IGNORED_DEVICE_SOURCES = "ignored_device_sources"
@@ -24,8 +25,12 @@ CONF_APPS_POLL_INTERVAL = "apps_poll_interval"
 # Defaults
 DEFAULT_GRACE_PERIOD = 30  # seconds
 DEFAULT_FIRE_EVENTS = True
+DEFAULT_MAX_PROBLEMS = 50
 DEFAULT_WATCH_STOPPED_ADDONS = False
 DEFAULT_APPS_POLL_INTERVAL = 60  # seconds
+
+# Leave room for metadata and HA entity attributes below Recorder's 16 KiB limit.
+MAX_PROBLEMS_ATTRIBUTE_BYTES = 12 * 1024
 
 # Sources that are always excluded — system internals or user-ignored discoveries
 EXCLUDED_SOURCES = {"system", "ignore"}

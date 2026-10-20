@@ -27,10 +27,12 @@ from .const import (
     CONF_GRACE_PERIOD,
     CONF_IGNORED_DEVICE_IDS,
     CONF_IGNORED_DEVICE_SOURCES,
+    CONF_MAX_PROBLEMS,
     CONF_WATCH_STOPPED_ADDONS,
     DEFAULT_APPS_POLL_INTERVAL,
     DEFAULT_FIRE_EVENTS,
     DEFAULT_GRACE_PERIOD,
+    DEFAULT_MAX_PROBLEMS,
     DEFAULT_WATCH_STOPPED_ADDONS,
     DOMAIN,
     EXCLUDED_DOMAINS,
@@ -61,6 +63,7 @@ class SentinelConfigFlow(ConfigFlow, domain=DOMAIN):
             data={},
             options={
                 CONF_FIRE_EVENTS: DEFAULT_FIRE_EVENTS,
+                CONF_MAX_PROBLEMS: DEFAULT_MAX_PROBLEMS,
                 CONF_GRACE_PERIOD: DEFAULT_GRACE_PERIOD,
                 CONF_EXCLUDED_ENTRIES: [],
                 CONF_IGNORED_DEVICE_SOURCES: [],
@@ -78,7 +81,7 @@ class SentinelConfigFlow(ConfigFlow, domain=DOMAIN):
 
 
 class SentinelOptionsFlow(OptionsFlow):
-    """Options flow for HA Sentinel — single screen, seven fields, logical order."""
+    """Options flow for HA Sentinel — single screen, logical order."""
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -120,6 +123,12 @@ class SentinelOptionsFlow(OptionsFlow):
                     CONF_FIRE_EVENTS,
                     default=current.get(CONF_FIRE_EVENTS, DEFAULT_FIRE_EVENTS),
                 ): BooleanSelector(),
+                vol.Optional(
+                    CONF_MAX_PROBLEMS,
+                    default=current.get(CONF_MAX_PROBLEMS, DEFAULT_MAX_PROBLEMS),
+                ): NumberSelector(
+                    NumberSelectorConfig(min=0, step=1, mode=NumberSelectorMode.BOX)
+                ),
                 # 2 — Integrations
                 vol.Optional(
                     CONF_GRACE_PERIOD,

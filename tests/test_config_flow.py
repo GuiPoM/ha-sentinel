@@ -10,14 +10,18 @@ from custom_components.sentinel.const import (
     CONF_GRACE_PERIOD,
     CONF_IGNORED_DEVICE_IDS,
     CONF_IGNORED_DEVICE_SOURCES,
+    CONF_MAX_PROBLEMS,
     CONF_WATCH_STOPPED_ADDONS,
     DEFAULT_APPS_POLL_INTERVAL,
     DEFAULT_FIRE_EVENTS,
     DEFAULT_GRACE_PERIOD,
+    DEFAULT_MAX_PROBLEMS,
     DEFAULT_WATCH_STOPPED_ADDONS,
     DOMAIN,
 )
 import pytest
+from pytest_homeassistant_custom_component.common import MockConfigEntry
+import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
@@ -45,6 +49,7 @@ async def test_config_flow_creates_entry_directly(hass: HomeAssistant, mock_setu
     assert result["title"] == "Sentinel"
     options = result["options"]
     assert options[CONF_FIRE_EVENTS] == DEFAULT_FIRE_EVENTS
+    assert options[CONF_MAX_PROBLEMS] == DEFAULT_MAX_PROBLEMS
     assert options[CONF_GRACE_PERIOD] == DEFAULT_GRACE_PERIOD
     assert options[CONF_EXCLUDED_ENTRIES] == []
     assert options[CONF_IGNORED_DEVICE_SOURCES] == []
@@ -88,6 +93,7 @@ async def test_options_flow_updates_options(hass: HomeAssistant, mock_setup_entr
         result["flow_id"],
         user_input={
             CONF_FIRE_EVENTS: False,
+            CONF_MAX_PROBLEMS: 75,
             CONF_GRACE_PERIOD: 60,
             CONF_EXCLUDED_ENTRIES: [],
             CONF_IGNORED_DEVICE_SOURCES: ["mobile_app"],
@@ -100,6 +106,21 @@ async def test_options_flow_updates_options(hass: HomeAssistant, mock_setup_entr
     assert result["type"] == FlowResultType.CREATE_ENTRY
     assert entry.options[CONF_GRACE_PERIOD] == 60
     assert entry.options[CONF_FIRE_EVENTS] is False
+    assert entry.options[CONF_MAX_PROBLEMS] == 75
     assert entry.options[CONF_IGNORED_DEVICE_SOURCES] == ["mobile_app"]
     assert entry.options[CONF_WATCH_STOPPED_ADDONS] is True
     assert entry.options[CONF_APPS_POLL_INTERVAL] == 120
+
+
+@pytest.mark.parametrize("options", [{}, {CONF_MAX_PROBLEMS: 0}, {CONF_MAX_PROBLEMS: 75}])
+async def test_max_problems_option_schema(hass: HomeAssistant, options):
+    """Existing entries get the default; configured limits are preserved and validated."""
+    entry = MockConfigEntry(domain=DOMAIN, data={}, options=options)
+    entry.add_to_hass(hass)
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    schema = result["data_schema"]
+    assert schema({})[CONF_MAX_PROBLEMS] == options.get(CONF_MAX_PROBLEMS, DEFAULT_MAX_PROBLEMS)
+    assert schema({CONF_MAX_PROBLEMS: 0})[CONF_MAX_PROBLEMS] == 0
+    with pytest.raises(vol.Invalid):
+        schema({CONF_MAX_PROBLEMS: -1})

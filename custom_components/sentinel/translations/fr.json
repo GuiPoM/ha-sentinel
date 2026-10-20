@@ -17,6 +17,7 @@
         "title": "Options Sentinel",
         "data": {
           "fire_events": "Émettre des événements sur le bus HA",
+          "max_problems": "Nombre maximal de problèmes dans les attributs du capteur",
           "grace_period": "Délai de grâce (secondes)",
           "excluded_entries": "Intégrations exclues",
           "ignored_device_sources": "Sources d'appareils ignorées",
@@ -26,6 +27,7 @@
         },
         "data_description": {
           "fire_events": "Émet un événement `sentinel_item_changed` sur le bus HA à chaque changement d'état. Nécessaire pour les automations.",
+          "max_problems": "Nombre maximal d'entrées dans la liste du capteur de problèmes (50 par défaut, 0 = masquer la liste). Une limite de taille peut la réduire davantage pour protéger Recorder. La valeur du capteur et problems_total indiquent toujours le nombre total.",
           "grace_period": "Durée pendant laquelle une intégration doit rester en erreur avant d'être signalée (0 = immédiat).",
           "excluded_entries": "Intégrations à exclure de la surveillance. Seul l'état de l'intégration est exclu — ses appareils physiques restent surveillés.",
           "ignored_device_sources": "Sources d'appareils à exclure de la surveillance (ex : mobile_app, cast). Seuls les appareils de ces sources sont exclus — l'état de l'intégration elle-même reste surveillé. Les sources sont listées depuis votre installation.",

@@ -71,6 +71,7 @@ Sentinel works out of the box — configure only what you need to adjust.
 | Option | Default | Description |
 |---|---|---|
 | Fire events on the HA bus | Yes | Fire `sentinel_item_changed` on every state change — required for automations |
+| Maximum problems in sensor attributes | 50 | Maximum entries in the Problems sensor's problem list (0 = hide the list); a size limit may shorten it further |
 | Grace period (seconds) | 30s | How long an integration must stay failed before being reported (0 = immediate) |
 | Excluded integrations | None | Integrations to exclude from monitoring (dropdown, your install) |
 | Report stopped applications as warning | No | When enabled, stopped applications are reported as warnings |
@@ -130,6 +131,17 @@ One `binary_sensor.sentinel_*` per monitored item:
 ### Sensor
 
 - `sensor.sentinel_problems` — total number of unhealthy items across all providers
+
+The sensor value always counts every unhealthy item. Its attributes include:
+
+| Attribute | Description |
+|---|---|
+| `problems` | Problem details (`id`, `name`, `provider`, `state`, `reason`), limited to the configured maximum (default 50) and a 12 KiB JSON budget to keep Recorder attributes below its 16 KiB limit |
+| `problems_total` | Total number of unhealthy items, including those omitted from the list |
+| `problems_truncated` | `true` when some problems are omitted because of either limit |
+
+Cards can use the list length and `problems_total` to show, for example, "showing 50 of 173".
+The list preserves provider order and stops before the first entry that exceeds the size budget; individual fields are kept intact. Full details remain available on each item's binary sensor and in `sentinel_item_changed` events.
 
 ---
 

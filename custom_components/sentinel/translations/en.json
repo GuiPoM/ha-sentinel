@@ -17,6 +17,7 @@
         "title": "Sentinel Options",
         "data": {
           "fire_events": "Fire events on the HA bus",
+          "max_problems": "Maximum problems in sensor attributes",
           "grace_period": "Grace period (seconds)",
           "excluded_entries": "Excluded integrations",
           "ignored_device_sources": "Ignored device sources",
@@ -26,6 +27,7 @@
         },
         "data_description": {
           "fire_events": "Fire a `sentinel_item_changed` event on the HA event bus on every state change. Required for automations.",
+          "max_problems": "Maximum entries in the Problems sensor's problem list (default 50, 0 = hide the list). A size limit may shorten it further to protect Recorder. The sensor value and problems_total always show the full count.",
           "grace_period": "How long an integration must remain in a failed state before being reported (0 = immediate).",
           "excluded_entries": "Integrations to exclude from monitoring. Only the integration state is excluded — its physical devices are still monitored.",
           "ignored_device_sources": "Device sources to exclude from monitoring (e.g. mobile_app, cast). Only devices from these sources are excluded — the integration state itself is still monitored. Sources are listed from your current installation.",
