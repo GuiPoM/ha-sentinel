@@ -7,7 +7,7 @@
 - **Repo:** `GuiPoM/ha-sentinel` on `github.com`
 - **Domain:** `sentinel`
 - **Component path:** `custom_components/sentinel/`
-- **Identity:** always use `GuiPoM` / `11942518+GuiPoM@users.noreply.github.com`
+- **Identity:** `GuiPoM` / `11942518+GuiPoM@users.noreply.github.com` identifies the primary author only. Contributors must use their own Git identity for commit authorship and committer attribution.
 
 ---
 
