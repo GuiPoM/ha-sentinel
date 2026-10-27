@@ -54,7 +54,7 @@ class SentinelCoordinator:
 
     async def async_setup(self) -> None:
         """Set up all providers."""
-        self._unsub_stop = self.hass.bus.async_listen(
+        self._unsub_stop = self.hass.bus.async_listen_once(
             EVENT_HOMEASSISTANT_STOP, self._async_stop
         )
         try:
