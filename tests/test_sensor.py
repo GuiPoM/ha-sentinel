@@ -147,7 +147,7 @@ async def test_published_sensor_updates(
     assert state.attributes["problems_total"] == 173
     assert state.attributes["problems_truncated"] is True
     assert 0 < len(state.attributes["problems"]) < 173
-    assert len(json_bytes(dict(state.attributes))) <= MAX_PROBLEMS_ATTRIBUTE_BYTES
+    assert len(json_bytes(dict(state.attributes))) < 16 * 1024
 
     for item in items:
         item.healthy = True
