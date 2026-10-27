@@ -52,20 +52,29 @@ def set_items(coordinator: SentinelCoordinator, items: list[HealthItem]) -> None
     }
 
 
+def make_items_until_truncated(coordinator: SentinelCoordinator) -> list[HealthItem]:
+    """Create short problems until the serialized payload reaches its budget."""
+    items: list[HealthItem] = []
+    sensor = SentinelProblemCountSensor(coordinator, "sentinel_entry")
+    while not sensor.extra_state_attributes["problems_truncated"]:
+        items.append(make_item(len(items)))
+        set_items(coordinator, items)
+    return items
+
+
 def test_problem_attributes_use_size_budget_for_short_problems(
     coordinator: SentinelCoordinator,
 ) -> None:
     """Short problems fill the size budget instead of an arbitrary count limit."""
-    items = [make_item(i) for i in range(173)]
-    set_items(coordinator, items)
+    items = make_items_until_truncated(coordinator)
     sensor = SentinelProblemCountSensor(coordinator, "sentinel_entry")
 
     attributes = sensor.extra_state_attributes
 
-    assert sensor.native_value == 173
-    assert attributes["problems_total"] == 173
+    assert sensor.native_value == len(items)
+    assert attributes["problems_total"] == len(items)
     assert attributes["problems_truncated"] is True
-    assert 0 < len(attributes["problems"]) < 173
+    assert 0 < len(attributes["problems"]) < len(items)
     assert len(json_bytes(attributes)) <= MAX_PROBLEMS_ATTRIBUTE_BYTES
 
 
@@ -136,17 +145,23 @@ async def test_published_sensor_updates(
     await hass.async_block_till_done()
 
     coordinator = hass.data[DOMAIN][entry.entry_id]
-    items = [make_item(i) for i in range(173)]
-    coordinator._providers[PROVIDER_DEVICES]._items = {item.id: item for item in items}
+    items: list[HealthItem] = []
+    sensor = SentinelProblemCountSensor(coordinator, "sentinel_entry")
+    while not sensor.extra_state_attributes["problems_truncated"]:
+        item = make_item(len(items))
+        items.append(item)
+        coordinator._providers[PROVIDER_DEVICES]._items = {
+            current.id: current for current in items
+        }
     async_dispatcher_send(hass, SIGNAL_SENTINEL_UPDATE, items[-1])
     await hass.async_block_till_done()
 
     state = hass.states.get("sensor.sentinel_problems")
     assert state is not None
-    assert state.state == "173"
-    assert state.attributes["problems_total"] == 173
+    assert state.state == str(len(items))
+    assert state.attributes["problems_total"] == len(items)
     assert state.attributes["problems_truncated"] is True
-    assert 0 < len(state.attributes["problems"]) < 173
+    assert 0 < len(state.attributes["problems"]) < len(items)
     assert len(json_bytes(dict(state.attributes))) < 16 * 1024
 
     for item in items:

@@ -134,7 +134,7 @@ class SentinelProblemCountSensor(SensorEntity):
                         "name": remaining.name,
                         "provider": str(remaining.provider),
                         "state": str(remaining.state),
-                        "reason": None,
+                        "reason": remaining.reason,
                     }
                     for remaining in unhealthy[index + 1 :]
                 ]
