@@ -2,9 +2,8 @@
 
 Provides a global sensor counting unhealthy items.
 """
-from __future__ import annotations
 
-import logging
+from __future__ import annotations
 
 from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
@@ -13,12 +12,11 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN, SIGNAL_SENTINEL_UPDATE
+from .const import DOMAIN, MAX_PROBLEMS_ATTRIBUTE_BYTES, SIGNAL_SENTINEL_UPDATE
 from .coordinator import SentinelCoordinator
 from .entity_base import sentinel_device_info
+from .problem_payload import build_problem_attributes
 from .providers import HealthItem
-
-_LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
@@ -29,9 +27,11 @@ async def async_setup_entry(
     """Set up global sentinel sensors."""
     coordinator: SentinelCoordinator = hass.data[DOMAIN][entry.entry_id]
 
-    async_add_entities([
-        SentinelProblemCountSensor(coordinator, entry.entry_id),
-    ])
+    async_add_entities(
+        [
+            SentinelProblemCountSensor(coordinator, entry.entry_id),
+        ]
+    )
 
 
 class SentinelProblemCountSensor(SensorEntity):
@@ -61,19 +61,19 @@ class SentinelProblemCountSensor(SensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict:
-        """Return list of unhealthy items."""
+        """Return all problems that fit in the Recorder-safe attribute budget."""
         problems = [
             {
                 "id": item.id,
                 "name": item.name,
-                "provider": item.provider,
-                "state": item.state,
+                "provider": str(item.provider),
+                "state": str(item.state),
                 "reason": item.reason,
             }
             for item in self._coordinator.get_all_items()
             if not item.healthy
         ]
-        return {"problems": problems}
+        return build_problem_attributes(problems, MAX_PROBLEMS_ATTRIBUTE_BYTES)
 
     async def async_added_to_hass(self) -> None:
         """Subscribe to updates."""
