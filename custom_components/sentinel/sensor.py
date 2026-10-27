@@ -78,6 +78,21 @@ def _fits_with_remaining(attributes: dict, problem: dict, remaining: list[dict])
     return fits
 
 
+def _minimum_problem(item: HealthItem) -> dict:
+    """Return the smallest useful representation that can fit for an item."""
+    problem = {
+        "id": item.id,
+        "name": item.name,
+        "provider": str(item.provider),
+        "state": str(item.state),
+        "reason": item.reason,
+    }
+    if len(json_bytes({"problems": [problem]})) <= MAX_PROBLEMS_ATTRIBUTE_BYTES:
+        return problem
+    problem["reason"] = None
+    return problem
+
+
 class SentinelProblemCountSensor(SensorEntity):
     """Sensor showing the total number of unhealthy items."""
 
@@ -129,14 +144,7 @@ class SentinelProblemCountSensor(SensorEntity):
             reason = item.reason
             if reason is not None:
                 remaining = [
-                    {
-                        "id": remaining.id,
-                        "name": remaining.name,
-                        "provider": str(remaining.provider),
-                        "state": str(remaining.state),
-                        "reason": remaining.reason,
-                    }
-                    for remaining in unhealthy[index + 1 :]
+                    _minimum_problem(remaining) for remaining in unhealthy[index + 1 :]
                 ]
                 truncated = _fit_truncated_reason(attributes, problem, reason, remaining)
                 if truncated is not None:
