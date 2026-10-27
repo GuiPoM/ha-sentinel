@@ -131,6 +131,11 @@ One `binary_sensor.sentinel_*` per monitored item:
 
 - `sensor.sentinel_problems` — total number of unhealthy items across all providers
 
+  Its `problems` attribute contains as many problem details as fit within a Recorder-safe
+  serialized size budget. `problems_total` always contains the complete count, while
+  `problems_truncated` indicates that some details could not be included. An oversized
+  `reason` is shortened and marked with `reason_truncated: true`.
+
 ---
 
 ## Events

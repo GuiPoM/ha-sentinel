@@ -27,6 +27,9 @@ DEFAULT_FIRE_EVENTS = True
 DEFAULT_WATCH_STOPPED_ADDONS = False
 DEFAULT_APPS_POLL_INTERVAL = 60  # seconds
 
+# Keep the complete sensor attributes comfortably below Recorder's 16 KiB limit.
+MAX_PROBLEMS_ATTRIBUTE_BYTES = 12 * 1024
+
 # Sources that are always excluded — system internals or user-ignored discoveries
 EXCLUDED_SOURCES = {"system", "ignore"}
 

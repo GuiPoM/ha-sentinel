@@ -4,21 +4,18 @@ Provides a global sensor counting unhealthy items.
 """
 from __future__ import annotations
 
-import logging
-
 from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.json import json_bytes
 
-from .const import DOMAIN, SIGNAL_SENTINEL_UPDATE
+from .const import DOMAIN, MAX_PROBLEMS_ATTRIBUTE_BYTES, SIGNAL_SENTINEL_UPDATE
 from .coordinator import SentinelCoordinator
 from .entity_base import sentinel_device_info
 from .providers import HealthItem
-
-_LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
@@ -32,6 +29,37 @@ async def async_setup_entry(
     async_add_entities([
         SentinelProblemCountSensor(coordinator, entry.entry_id),
     ])
+
+
+def _fits(attributes: dict, problem: dict) -> bool:
+    """Return whether adding a problem stays within the attribute budget."""
+    attributes["problems"].append(problem)
+    fits = len(json_bytes(attributes)) <= MAX_PROBLEMS_ATTRIBUTE_BYTES
+    attributes["problems"].pop()
+    return fits
+
+
+def _fit_truncated_reason(attributes: dict, problem: dict, reason: str) -> dict | None:
+    """Return the longest fitting reason prefix, or None if no entry fits."""
+    suffix = "…"
+    low = 0
+    high = len(reason)
+    best: dict | None = None
+
+    while low <= high:
+        length = (low + high) // 2
+        candidate = {
+            **problem,
+            "reason": reason[:length] + suffix,
+            "reason_truncated": True,
+        }
+        if _fits(attributes, candidate):
+            best = candidate
+            low = length + 1
+        else:
+            high = length - 1
+
+    return best
 
 
 class SentinelProblemCountSensor(SensorEntity):
@@ -61,19 +89,41 @@ class SentinelProblemCountSensor(SensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict:
-        """Return list of unhealthy items."""
-        problems = [
-            {
+        """Return all problems that fit in the Recorder-safe attribute budget."""
+        unhealthy = [
+            item for item in self._coordinator.get_all_items() if not item.healthy
+        ]
+        problems: list[dict] = []
+        attributes = {
+            "problems": problems,
+            "problems_total": len(unhealthy),
+            "problems_truncated": False,
+        }
+
+        for item in unhealthy:
+            problem = {
                 "id": item.id,
                 "name": item.name,
                 "provider": item.provider,
                 "state": item.state,
                 "reason": item.reason,
             }
-            for item in self._coordinator.get_all_items()
-            if not item.healthy
-        ]
-        return {"problems": problems}
+            if _fits(attributes, problem):
+                problems.append(problem)
+                continue
+
+            reason = item.reason
+            if reason is not None:
+                truncated = _fit_truncated_reason(attributes, problem, reason)
+                if truncated is not None:
+                    problems.append(truncated)
+                    continue
+
+            attributes["problems_truncated"] = True
+            break
+
+        attributes["problems_truncated"] = len(problems) < len(unhealthy)
+        return attributes
 
     async def async_added_to_hass(self) -> None:
         """Subscribe to updates."""
