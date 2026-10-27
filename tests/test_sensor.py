@@ -73,7 +73,7 @@ def test_problem_attributes_use_size_budget_for_short_problems(
 
     assert sensor.native_value == len(items)
     assert attributes["problems_total"] == len(items)
-    assert attributes["problems_truncated"] is False
+    assert attributes["problems_truncated"] is True
     assert 0 < len(attributes["problems"]) < len(items)
     assert len(json_bytes(attributes)) <= MAX_PROBLEMS_ATTRIBUTE_BYTES
 
@@ -110,7 +110,7 @@ def test_oversized_reason_does_not_hide_later_problems(
     attributes = sensor.extra_state_attributes
 
     assert attributes["problems_total"] == 3
-    assert attributes["problems_truncated"] is True
+    assert attributes["problems_truncated"] is False
     assert len(attributes["problems"]) == 3
     assert attributes["problems"][1]["reason_truncated"] is True
     assert attributes["problems"][2]["id"] == "device_2"
