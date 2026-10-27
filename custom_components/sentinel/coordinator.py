@@ -5,9 +5,12 @@ to entities, fires bus events, and exposes the reload action.
 """
 from __future__ import annotations
 
+import asyncio
+from collections.abc import Callable
 import logging
 
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.const import EVENT_HOMEASSISTANT_STOP
+from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 
@@ -45,9 +48,25 @@ class SentinelCoordinator:
         self.hass = hass
         self._config = config
         self._providers: dict[str, HealthProvider] = {}
+        self._stopped = False
+        self._unsub_stop: Callable[[], None] | None = None
+        self._unload_lock = asyncio.Lock()
 
     async def async_setup(self) -> None:
         """Set up all providers."""
+        self._unsub_stop = self.hass.bus.async_listen_once(
+            EVENT_HOMEASSISTANT_STOP, self._async_stop
+        )
+        try:
+            await self._async_setup_providers()
+        except BaseException:
+            await self.async_unload()
+            raise
+
+    async def _async_setup_providers(self) -> None:
+        """Set up providers while Home Assistant is active."""
+        if self._stopped or self.hass.is_stopping:
+            return
         grace_period: int = self._config.get(CONF_GRACE_PERIOD, DEFAULT_GRACE_PERIOD)
         excluded: list[str] = self._config.get(CONF_EXCLUDED_ENTRIES, [])
 
@@ -59,6 +78,8 @@ class SentinelCoordinator:
         )
         self._providers[PROVIDER_INTEGRATIONS] = integrations_provider
         await integrations_provider.async_setup(self._on_item_changed)
+        if self._stopped or self.hass.is_stopping:
+            return
 
         # v2: devices provider
         devices_provider = DevicesProvider(
@@ -69,6 +90,8 @@ class SentinelCoordinator:
         )
         self._providers[PROVIDER_DEVICES] = devices_provider
         await devices_provider.async_setup(self._on_item_changed)
+        if self._stopped or self.hass.is_stopping:
+            return
 
         # v3: apps (add-ons) provider — only active on HA OS
         apps_provider = AppsProvider(
@@ -82,10 +105,19 @@ class SentinelCoordinator:
         _LOGGER.debug("Sentinel coordinator set up with providers: %s", list(self._providers))
 
     async def async_unload(self) -> None:
-        """Unload all providers."""
-        for provider in self._providers.values():
-            await provider.async_unload()
-        self._providers.clear()
+        """Quiesce monitoring before releasing providers, also on HA shutdown."""
+        self._stopped = True
+        if self._unsub_stop:
+            self._unsub_stop()
+            self._unsub_stop = None
+        async with self._unload_lock:
+            for provider in self._providers.values():
+                await provider.async_unload()
+            self._providers.clear()
+
+    async def _async_stop(self, _event: Event) -> None:
+        """Stop monitoring at the stop event, without waiting for entry unload."""
+        await self.async_unload()
 
     @callback
     def _device_integration_has_problem(self, device_id: str) -> bool:
@@ -108,6 +140,10 @@ class SentinelCoordinator:
     @callback
     def _on_item_changed(self, item: HealthItem) -> None:
         """Called by a provider when an item's state changes."""
+        # The HA guard covers callbacks before our stop listener runs. The latch
+        # also covers close, when HA no longer reports is_stopping.
+        if self._stopped or self.hass.is_stopping:
+            return
         fire_events: bool = self._config.get(CONF_FIRE_EVENTS, DEFAULT_FIRE_EVENTS)
 
         if fire_events:
@@ -159,6 +195,8 @@ class SentinelCoordinator:
 
     async def async_reload_item(self, item_id: str) -> bool:
         """Reload an item by ID, trying all providers."""
+        if self._stopped or self.hass.is_stopping:
+            return False
         for provider in self._providers.values():
             if provider.get_item(item_id) is not None:
                 return await provider.async_reload_item(item_id)

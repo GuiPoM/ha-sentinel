@@ -125,6 +125,7 @@ class AppsProvider(HealthProvider):
         self._unsub_supervisor_event: Callable | None = None
         self._previous_healthy: dict[str, bool] = {}
         self._scan_lock = asyncio.Lock()
+        self._scan_tasks: set[asyncio.Task[None]] = set()
 
     @property
     def provider_id(self) -> str:
@@ -141,6 +142,8 @@ class AppsProvider(HealthProvider):
 
     async def async_setup(self, on_change_callback: Callable[[HealthItem], None]) -> None:
         """Set up the apps provider."""
+        if self._stopped or self.hass.is_stopping:
+            return
         if not self.available:
             _LOGGER.debug("Sentinel AppsProvider: not on HA OS, skipping setup")
             return
@@ -148,7 +151,15 @@ class AppsProvider(HealthProvider):
         self._on_change = on_change_callback
 
         # Initial scan
-        await self._async_scan()
+        self._schedule_scan()
+        try:
+            await asyncio.gather(*self._scan_tasks)
+        except asyncio.CancelledError:
+            if not self._stopped:
+                raise
+            return
+        if self._stopped or self.hass.is_stopping:
+            return
 
         # Subscribe to Supervisor push events for opportunistic immediate rescans
         self._unsub_supervisor_event = async_dispatcher_connect(
@@ -172,12 +183,20 @@ class AppsProvider(HealthProvider):
 
     async def async_unload(self) -> None:
         """Unload provider and cancel subscriptions."""
+        self._stopped = True
+        self._on_change = None
         if self._unsub_poll:
             self._unsub_poll()
             self._unsub_poll = None
         if self._unsub_supervisor_event:
             self._unsub_supervisor_event()
             self._unsub_supervisor_event = None
+        tasks = tuple(self._scan_tasks)
+        for task in tasks:
+            task.cancel()
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
+        self._scan_tasks.difference_update(tasks)
 
     async def async_reload_item(self, item_id: str) -> bool:
         """Restart the given add-on (item_id = slug)."""
@@ -187,18 +206,24 @@ class AppsProvider(HealthProvider):
     def _on_supervisor_event(self, event: dict[str, Any]) -> None:
         """Schedule an immediate rescan when the Supervisor fires an event."""
         _LOGGER.debug("Sentinel AppsProvider: supervisor event — scheduling rescan")
-        self.hass.async_create_task(self._async_scan())
+        self._schedule_scan()
 
     @callback
     def _schedule_scan(self, _now: Any = None) -> None:
         """Schedule a periodic scan from the time interval callback."""
-        self.hass.async_create_task(self._async_scan())
+        if self._stopped or self.hass.is_stopping:
+            return
+        task = self.hass.async_create_task(self._async_scan(), "Sentinel add-on scan")
+        self._scan_tasks.add(task)
+        task.add_done_callback(self._scan_tasks.discard)
 
     async def _async_scan(self) -> None:
         """Fetch fresh add-on states via addon_info() and update health items."""
         async with self._scan_lock:
+            if self._stopped or self.hass.is_stopping:
+                return
             addons = await _get_addons_with_state(self.hass)
-            if not addons:
+            if self._stopped or self.hass.is_stopping or not addons:
                 return
 
             seen_slugs: set[str] = set()

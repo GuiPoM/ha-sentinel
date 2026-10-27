@@ -99,6 +99,7 @@ class DevicesProvider(HealthProvider):
         self._unsub_state: Callable | None = None
         self._unsub_added: Callable | None = None
         self._unsub_registry: Callable | None = None
+        self._unsub_started: Callable | None = None
         # Map entity_id -> device_id for quick lookup in state change handler
         self._entity_to_device: dict[str, str] = {}
         # Track previous healthy state per device
@@ -193,27 +194,34 @@ class DevicesProvider(HealthProvider):
 
         # Re-evaluate all devices once HA is fully started to clear
         # transient unavailable states captured during boot snapshot
-        @callback
-        def _async_startup_recheck(_event=None) -> None:
-            _LOGGER.debug("DevicesProvider: HA started — running startup recheck")
-            for device_id in list(self._items.keys()):
-                self._async_evaluate_device(device_id)
-
         if self.hass.is_running:
-            _async_startup_recheck()
+            self._async_startup_recheck()
         else:
-            self.hass.bus.async_listen_once(
-                EVENT_HOMEASSISTANT_STARTED, _async_startup_recheck
+            self._unsub_started = self.hass.bus.async_listen_once(
+                EVENT_HOMEASSISTANT_STARTED, self._async_startup_recheck
             )
+
+    @callback
+    def _async_startup_recheck(self, _event: Event | None = None) -> None:
+        """Re-evaluate devices after startup, including entry reloads."""
+        self._unsub_started = None
+        if self._stopped or self.hass.is_stopping:
+            return
+        _LOGGER.debug("DevicesProvider: HA started — running startup recheck")
+        for device_id in list(self._items.keys()):
+            self._async_evaluate_device(device_id)
 
     async def async_unload(self) -> None:
         """Unload provider and cancel subscriptions."""
-        for unsub in (self._unsub_state, self._unsub_added, self._unsub_registry):
+        self._stopped = True
+        self._on_change = None
+        for unsub in (self._unsub_state, self._unsub_added, self._unsub_registry, self._unsub_started):
             if unsub:
                 unsub()
         self._unsub_state = None
         self._unsub_added = None
         self._unsub_registry = None
+        self._unsub_started = None
 
     async def async_reload_item(self, item_id: str) -> bool:
         """Devices cannot be reloaded — always returns False."""
@@ -222,6 +230,8 @@ class DevicesProvider(HealthProvider):
     @callback
     def _on_state_changed(self, event: Event) -> None:
         """Handle entity state change — re-evaluate the owning device."""
+        if self._stopped or self.hass.is_stopping:
+            return
         entity_id = event.data.get("entity_id")
         if not entity_id:
             return
@@ -237,6 +247,8 @@ class DevicesProvider(HealthProvider):
         Fired by async_track_state_added_domain when old_state is None.
         Covers both newly paired devices and re-enabled entities.
         """
+        if self._stopped or self.hass.is_stopping:
+            return
         entity_id = event.data.get("entity_id")
         if not entity_id or entity_id in self._entity_to_device:
             return
@@ -262,6 +274,8 @@ class DevicesProvider(HealthProvider):
     @callback
     def _on_entity_registry_updated(self, event: Event) -> None:
         """Handle entity registry changes."""
+        if self._stopped or self.hass.is_stopping:
+            return
         action = event.data.get("action")
         entity_id = event.data.get("entity_id")
 
@@ -319,6 +333,8 @@ class DevicesProvider(HealthProvider):
     @callback
     def _async_evaluate_device(self, device_id: str) -> None:
         """Re-evaluate a device's health and notify if changed."""
+        if self._stopped or self.hass.is_stopping:
+            return
         # Suppress if owning integration already has a problem (noise reduction)
         if self._integration_has_problem(device_id):
             if device_id in self._items:
