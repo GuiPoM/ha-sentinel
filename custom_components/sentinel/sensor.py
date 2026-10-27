@@ -11,11 +11,11 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.json import json_bytes
 
 from .const import DOMAIN, MAX_PROBLEMS_ATTRIBUTE_BYTES, SIGNAL_SENTINEL_UPDATE
 from .coordinator import SentinelCoordinator
 from .entity_base import sentinel_device_info
+from .problem_payload import build_problem_attributes
 from .providers import HealthItem
 
 
@@ -32,65 +32,6 @@ async def async_setup_entry(
             SentinelProblemCountSensor(coordinator, entry.entry_id),
         ]
     )
-
-
-def _fits(attributes: dict, problem: dict) -> bool:
-    """Return whether adding a problem stays within the attribute budget."""
-    attributes["problems"].append(problem)
-    fits = len(json_bytes(attributes)) <= MAX_PROBLEMS_ATTRIBUTE_BYTES
-    attributes["problems"].pop()
-    return fits
-
-
-def _fit_truncated_reason(attributes: dict, problem: dict, reason: str, remaining: list[dict]) -> dict | None:
-    """Return the longest fitting reason prefix while reserving later entries."""
-    suffix = "…"
-    low = 0
-    high = len(reason)
-    best: dict | None = None
-
-    while low <= high:
-        length = (low + high) // 2
-        candidate = {
-            **problem,
-            "reason": reason[:length] + suffix,
-            "reason_truncated": True,
-        }
-        if _fits_with_remaining(attributes, candidate, remaining):
-            best = candidate
-            low = length + 1
-        else:
-            high = length - 1
-
-    return best
-
-
-def _fits_with_remaining(attributes: dict, problem: dict, remaining: list[dict]) -> bool:
-    """Return whether a problem and minimal later entries fit the budget."""
-    if not _fits(attributes, problem):
-        return False
-
-    for minimum in remaining:
-        attributes["problems"].append(minimum)
-    fits = len(json_bytes(attributes)) <= MAX_PROBLEMS_ATTRIBUTE_BYTES
-    for _ in remaining:
-        attributes["problems"].pop()
-    return fits
-
-
-def _minimum_problem(item: HealthItem) -> dict:
-    """Return the smallest useful representation that can fit for an item."""
-    problem = {
-        "id": item.id,
-        "name": item.name,
-        "provider": str(item.provider),
-        "state": str(item.state),
-        "reason": item.reason,
-    }
-    if len(json_bytes({"problems": [problem]})) <= MAX_PROBLEMS_ATTRIBUTE_BYTES:
-        return problem
-    problem["reason"] = None
-    return problem
 
 
 class SentinelProblemCountSensor(SensorEntity):
@@ -121,41 +62,18 @@ class SentinelProblemCountSensor(SensorEntity):
     @property
     def extra_state_attributes(self) -> dict:
         """Return all problems that fit in the Recorder-safe attribute budget."""
-        unhealthy = [item for item in self._coordinator.get_all_items() if not item.healthy]
-        problems: list[dict] = []
-        attributes = {
-            "problems": problems,
-            "problems_total": len(unhealthy),
-            "problems_truncated": False,
-        }
-
-        for index, item in enumerate(unhealthy):
-            problem = {
+        problems = [
+            {
                 "id": item.id,
                 "name": item.name,
                 "provider": str(item.provider),
                 "state": str(item.state),
                 "reason": item.reason,
             }
-            if _fits(attributes, problem):
-                problems.append(problem)
-                continue
-
-            reason = item.reason
-            if reason is not None:
-                remaining = [
-                    _minimum_problem(remaining) for remaining in unhealthy[index + 1 :]
-                ]
-                truncated = _fit_truncated_reason(attributes, problem, reason, remaining)
-                if truncated is not None:
-                    problems.append(truncated)
-                    continue
-
-            attributes["problems_truncated"] = True
-            break
-
-        attributes["problems_truncated"] = len(problems) < len(unhealthy)
-        return attributes
+            for item in self._coordinator.get_all_items()
+            if not item.healthy
+        ]
+        return build_problem_attributes(problems, MAX_PROBLEMS_ATTRIBUTE_BYTES)
 
     async def async_added_to_hass(self) -> None:
         """Subscribe to updates."""
