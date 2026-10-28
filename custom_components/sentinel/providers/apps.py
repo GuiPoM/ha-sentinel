@@ -37,10 +37,9 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.hassio import is_hassio
-from homeassistant.util import dt as dt_util
 
 from ..const import DEFAULT_APPS_POLL_INTERVAL, PROVIDER_APPS
-from . import HealthItem, HealthProvider
+from . import HealthItem, HealthProvider, sentinel_now
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -278,7 +277,7 @@ class AppsProvider(HealthProvider):
             failure_count += 1
 
         name = self._get_name(addon)
-        now = dt_util.utcnow()
+        now = sentinel_now()
 
         item = HealthItem(
             id=slug,

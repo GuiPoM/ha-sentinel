@@ -24,7 +24,7 @@ reset_failure_count:
 
 check:
   name: Check
-  description: Re-fire events for all currently unhealthy integrations. Useful to trigger automations on demand.
+  description: Re-fire events for all currently unhealthy monitored items. Useful to trigger automations on demand.
   fields: {}
 
 purge:
