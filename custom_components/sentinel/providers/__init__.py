@@ -9,6 +9,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
+from ..time import sentinel_now
+
 
 @dataclass
 class HealthItem:
@@ -35,7 +37,7 @@ class HealthItem:
     reason: str | None = None
     """Error reason/message if unhealthy."""
 
-    since: datetime = field(default_factory=datetime.now)
+    since: datetime = field(default_factory=sentinel_now)
     """Timestamp of last state change."""
 
     failure_count: int = 0

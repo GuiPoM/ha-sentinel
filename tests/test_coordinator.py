@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 from homeassistant.util import dt as dt_util
@@ -105,8 +106,7 @@ class TestOnItemChanged:
         item.severity = "error"
         item.reason = None
         item.failure_count = 1
-        item.since = MagicMock()
-        item.since.isoformat.return_value = "2026-01-01T00:00:00"
+        item.since = dt_util.utcnow()
         item.extra = {"domain": "netatmo", "source": "NETATMO"}
         return item
 
@@ -123,7 +123,37 @@ class TestOnItemChanged:
         data = call_args[0][1]
         assert data["item_id"] == "test_item"
         assert data["healthy"] is False
+        parsed_since = datetime.fromisoformat(data["since"])
+        assert parsed_since.tzinfo is not None
+        assert parsed_since.utcoffset() == timedelta(0)
         assert data["item_type"] == "integration"
+
+        assert set(data) == {
+            "item_id",
+            "provider",
+            "name",
+            "domain",
+            "source",
+            "item_type",
+            "healthy",
+            "state",
+            "severity",
+            "reason",
+            "failure_count",
+            "since",
+        }
+        assert isinstance(data["item_id"], str)
+        assert isinstance(data["provider"], str)
+        assert isinstance(data["name"], str)
+        assert isinstance(data["domain"], str)
+        assert isinstance(data["source"], str)
+        assert isinstance(data["item_type"], str)
+        assert isinstance(data["healthy"], bool)
+        assert isinstance(data["state"], str)
+        assert isinstance(data["severity"], str)
+        assert data["reason"] is None or isinstance(data["reason"], str)
+        assert isinstance(data["failure_count"], int)
+        assert isinstance(data["since"], str)
 
     def test_does_not_fire_bus_event_when_disabled(self):
         hass = MagicMock(is_stopping=False)
@@ -155,6 +185,26 @@ class TestOnItemChanged:
 
         data = hass.bus.async_fire.call_args[0][1]
         assert data["domain"] == "hue"  # source.lower() as fallback
+
+    def test_recheck_fires_all_unhealthy_provider_items(self):
+        hass = MagicMock(is_stopping=False)
+        coordinator = SentinelCoordinator(hass, {CONF_FIRE_EVENTS: True})
+        integrations = MagicMock()
+        devices = MagicMock()
+        integrations.get_items.return_value = {
+            "integration": self._make_item(provider=PROVIDER_INTEGRATIONS),
+        }
+        devices.get_items.return_value = {
+            "device": self._make_item(provider=PROVIDER_DEVICES),
+        }
+        coordinator._providers = {
+            PROVIDER_INTEGRATIONS: integrations,
+            PROVIDER_DEVICES: devices,
+        }
+
+        coordinator.async_recheck()
+
+        assert hass.bus.async_fire.call_count == 2
 
 
 class TestResetFailureCount:

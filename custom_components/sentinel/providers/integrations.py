@@ -17,7 +17,6 @@ from homeassistant.config_entries import (
 )
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
-from homeassistant.util import dt as dt_util
 
 from ..const import (
     DEFAULT_GRACE_PERIOD,
@@ -30,7 +29,7 @@ from ..const import (
     TRANSIENT_STATES,
     WARNING_STATES,
 )
-from . import HealthItem, HealthProvider
+from . import HealthItem, HealthProvider, sentinel_now
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -303,7 +302,7 @@ class IntegrationsProvider(HealthProvider):
             state=state_str,
             severity=_get_severity(state_str),
             reason=getattr(entry, "reason", None),
-            since=existing.since if existing and existing.healthy == healthy else dt_util.utcnow(),
+            since=existing.since if existing and existing.healthy == healthy else sentinel_now(),
             failure_count=failure_count,
             can_reload=entry.state.recoverable,
             extra={

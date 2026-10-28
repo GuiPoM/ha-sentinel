@@ -23,14 +23,13 @@ from homeassistant.helpers.event import (
     async_track_state_added_domain,
     async_track_state_change_event,
 )
-from homeassistant.util import dt as dt_util
 
 from ..const import (
     PHYSICAL_DOMAINS,
     PROVIDER_DEVICES,
     VITAL_DEVICE_CLASSES,
 )
-from . import HealthItem, HealthProvider
+from . import HealthItem, HealthProvider, sentinel_now
 
 if TYPE_CHECKING:
     from homeassistant.core import Event
@@ -393,7 +392,7 @@ class DevicesProvider(HealthProvider):
 
         device_name = device.name_by_user or device.name or device_id
         source = _get_device_source(self.hass, device_id)
-        now = dt_util.utcnow()
+        now = sentinel_now()
 
         # If force_healthy, skip all state checks and return a healthy item
         if force_healthy:

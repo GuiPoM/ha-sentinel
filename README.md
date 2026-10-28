@@ -142,6 +142,18 @@ One `binary_sensor.sentinel_*` per monitored item:
 
 When an item changes health state, Sentinel fires `sentinel_item_changed`:
 
+This event payload is Sentinel's user-facing integration contract. Existing field
+names, types, and meanings should remain stable as far as reasonably possible so
+that automations can continue to consume the event. New fields may be added over
+time. Sentinel's internal coordinator, `hass.data["sentinel"]`, and the
+`sentinel_update` dispatcher signal are implementation details and are not stable
+public interfaces.
+
+The `sentinel.check` service re-fires this event for all currently unhealthy
+monitored items across all providers. The `fire_events` option controls whether
+the public event is emitted. When it is disabled, consumers should not rely on
+Sentinel's internal data as a compatibility fallback.
+
 ```yaml
 event_type: sentinel_item_changed
 data:
@@ -156,8 +168,11 @@ data:
   severity: "error"
   reason: "Token expired"
   failure_count: 3
-  since: "2026-05-06T11:00:00"
+  since: "2026-05-06T11:00:00+00:00"
 ```
+
+`since` is serialized as an ISO 8601 timestamp. Sentinel creates timestamps as
+timezone-aware UTC values.
 
 ### Example automation: notify on problem
 

@@ -32,6 +32,7 @@ from .const import (
     PROVIDER_INTEGRATIONS,
     SIGNAL_SENTINEL_UPDATE,
 )
+from .event_payload import build_item_changed_payload
 from .providers import HealthItem, HealthProvider
 from .providers.apps import AppsProvider
 from .providers.devices import DevicesProvider
@@ -147,30 +148,9 @@ class SentinelCoordinator:
         fire_events: bool = self._config.get(CONF_FIRE_EVENTS, DEFAULT_FIRE_EVENTS)
 
         if fire_events:
-            source = item.extra.get("source", "")
-            domain = item.extra.get("domain", "") or source.lower()
-            if item.provider == PROVIDER_DEVICES:
-                item_type = "device"
-            elif item.provider == PROVIDER_APPS:
-                item_type = "addon"
-            else:
-                item_type = "integration"
             self.hass.bus.async_fire(
                 EVENT_ITEM_CHANGED,
-                {
-                    "item_id": item.id,
-                    "provider": item.provider,
-                    "name": item.name,
-                    "domain": domain,
-                    "source": source,
-                    "item_type": item_type,
-                    "healthy": item.healthy,
-                    "state": item.state,
-                    "severity": item.severity,
-                    "reason": item.reason,
-                    "failure_count": item.failure_count,
-                    "since": item.since.isoformat(),
-                },
+                build_item_changed_payload(item),
             )
 
         async_dispatcher_send(self.hass, SIGNAL_SENTINEL_UPDATE, item)
