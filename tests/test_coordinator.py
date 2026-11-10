@@ -37,7 +37,7 @@ class TestDeviceIntegrationHasProblem:
         hass = MagicMock()
         coordinator = SentinelCoordinator(hass, {})
         device = MagicMock()
-        device.config_entries = ["entry1"]
+        device.config_entry_id = "entry1"
         dr_mock = MagicMock()
         dr_mock.async_get.return_value = device
         with patch("custom_components.sentinel.coordinator.dr.async_get", return_value=dr_mock):
@@ -56,7 +56,7 @@ class TestDeviceIntegrationHasProblem:
 
         coordinator, _ = self._make_coordinator({"entry1": healthy_item})
         device = MagicMock()
-        device.config_entries = ["entry1"]
+        device.config_entry_id = "entry1"
         dr_mock = MagicMock()
         dr_mock.async_get.return_value = device
         with patch("custom_components.sentinel.coordinator.dr.async_get", return_value=dr_mock):
@@ -68,7 +68,7 @@ class TestDeviceIntegrationHasProblem:
 
         coordinator, _ = self._make_coordinator({"entry1": unhealthy_item})
         device = MagicMock()
-        device.config_entries = ["entry1"]
+        device.config_entry_id = "entry1"
         dr_mock = MagicMock()
         dr_mock.async_get.return_value = device
         with patch("custom_components.sentinel.coordinator.dr.async_get", return_value=dr_mock):
@@ -86,7 +86,7 @@ class TestDeviceIntegrationHasProblem:
             "entry2": unhealthy_item,
         })
         device = MagicMock()
-        device.config_entries = ["entry1", "entry2"]
+        device.config_entry_id = "entry2"
         dr_mock = MagicMock()
         dr_mock.async_get.return_value = device
         with patch("custom_components.sentinel.coordinator.dr.async_get", return_value=dr_mock):

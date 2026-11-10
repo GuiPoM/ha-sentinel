@@ -132,7 +132,8 @@ class SentinelCoordinator:
         if not isinstance(integrations_provider, IntegrationsProvider):
             return False
 
-        for entry_id in device.config_entries:
+        entry_id = device.config_entry_id
+        if entry_id:
             item = integrations_provider.get_item(entry_id)
             if item is not None and not item.healthy:
                 return True
