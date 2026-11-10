@@ -32,6 +32,7 @@ from .const import (
     PROVIDER_INTEGRATIONS,
     SIGNAL_SENTINEL_UPDATE,
 )
+from .device_registry import get_device_config_entry_id
 from .event_payload import build_item_changed_payload
 from .providers import HealthItem, HealthProvider
 from .providers.apps import AppsProvider
@@ -132,7 +133,7 @@ class SentinelCoordinator:
         if not isinstance(integrations_provider, IntegrationsProvider):
             return False
 
-        entry_id = device.config_entry_id
+        entry_id = get_device_config_entry_id(device)
         if entry_id:
             item = integrations_provider.get_item(entry_id)
             if item is not None and not item.healthy:
