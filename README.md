@@ -233,12 +233,17 @@ max: 10
 
 Sentinel automatically assigns HA labels to all its `binary_sensor` entities when they are created.
 
-| Label | Entities |
-|---|---|
-| `sentinel` | All Sentinel binary_sensor entities |
-| `sentinel_integration` | Integration health entities only |
-| `sentinel_device` | Device health entities only |
-| `sentinel_app` | Application health entities only |
+| Internal label ID | Displayed name | Entities |
+|---|---|---|
+| `sentinel` | Sentinel | All Sentinel binary_sensor entities |
+| `sentinel_integration` | Sentinel Integration | Integration health entities only |
+| `sentinel_device` | Sentinel Device | Device health entities only |
+| `sentinel_app` | Sentinel App | Application health entities only |
+
+Home Assistant has a separate internal label ID and user-facing displayed name.
+Automations must use the internal ID, for example `label_entities('sentinel_device')`.
+The displayed name may contain spaces, capitalization, or be customized in the Home
+Assistant UI without changing the ID used by automations.
 
 Labels are useful for organizing entities in the HA UI, filtering in dashboards, and grouping in conditions:
 
