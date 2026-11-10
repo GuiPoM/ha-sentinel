@@ -29,7 +29,6 @@ from ..const import (
     PROVIDER_DEVICES,
     VITAL_DEVICE_CLASSES,
 )
-from ..device_registry import get_device_config_entry_id
 from . import HealthItem, HealthProvider, sentinel_now
 
 if TYPE_CHECKING:
@@ -125,7 +124,7 @@ class DevicesProvider(HealthProvider):
         dev_reg = dr.async_get(self.hass)
         device = dev_reg.async_get(device_id)
         if device is not None:
-            config_entry_id = get_device_config_entry_id(device)
+            config_entry_id = device.config_entry_id
             if config_entry_id:
                 entries = self.hass.config_entries
                 if all(
