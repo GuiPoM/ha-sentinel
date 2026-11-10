@@ -182,7 +182,7 @@ class TestShouldWatchDevice:
         provider = self._make_provider()
         device = MagicMock()
         device.identifiers = {("hue", "abc")}
-        device.config_entries = set()  # no config entries — not filtered
+        device.config_entry_id = None  # no config entry — not filtered
         dr_mock = MagicMock()
         dr_mock.async_get.return_value = device
         with patch("custom_components.sentinel.providers.devices.dr.async_get", return_value=dr_mock):
@@ -196,7 +196,7 @@ class TestShouldWatchDevice:
         provider = self._make_provider(ignored_sources=["mobile_app"])
         device = MagicMock()
         device.identifiers = {("mobile_app", "abc")}
-        device.config_entries = set()
+        device.config_entry_id = None
         dr_mock = MagicMock()
         dr_mock.async_get.return_value = device
         with patch("custom_components.sentinel.providers.devices.dr.async_get", return_value=dr_mock):
@@ -207,7 +207,7 @@ class TestShouldWatchDevice:
         provider = self._make_provider(ignored_sources=["mobile_app"])
         device = MagicMock()
         device.identifiers = {("mobile_app", "abc")}
-        device.config_entries = set()
+        device.config_entry_id = None
         dr_mock = MagicMock()
         dr_mock.async_get.return_value = device
         with patch("custom_components.sentinel.providers.devices.dr.async_get", return_value=dr_mock):

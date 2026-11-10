@@ -2,13 +2,15 @@
 
 [![GitHub release](https://img.shields.io/github/release/GuiPoM/ha-sentinel.svg)](https://github.com/GuiPoM/ha-sentinel/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](./LICENSE)
-[![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue)](https://www.home-assistant.io/)
+[![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2026.8%2B-blue)](https://www.home-assistant.io/)
 
 **Proactive health monitoring for Home Assistant — know when something breaks before you notice the lights aren't responding.**
 
 ![Sentinel](icon.png)
 
 Sentinel watches your integrations, physical devices and applications (add-ons) in real time. No polling. No YAML. No manual entity wrangling. When something goes wrong, you know immediately.
+
+> **Version 0.8.0 breaking change:** Sentinel now requires Home Assistant 2026.8 or newer. This follows Home Assistant's single-config-entry device registry model and removes support for the deprecated multi-entry device API.
 
 ---
 
