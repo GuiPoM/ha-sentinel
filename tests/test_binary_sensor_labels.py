@@ -12,6 +12,7 @@ from custom_components.sentinel.binary_sensor import (
     LABEL_INTEGRATION,
     LABEL_SENTINEL,
     _PROVIDER_LABEL,
+    _LABEL_DEFINITIONS,
     _ensure_labels,
 )
 from custom_components.sentinel.const import (
@@ -77,6 +78,15 @@ class TestProviderLabelMapping:
 
     def test_apps_maps_to_sentinel_app(self) -> None:
         assert _PROVIDER_LABEL[PROVIDER_APPS] == LABEL_APP
+
+    def test_label_ids_have_expected_display_names(self) -> None:
+        """Keep internal IDs separate from the names shown in Home Assistant."""
+        assert _LABEL_DEFINITIONS == {
+            LABEL_SENTINEL: "Sentinel",
+            LABEL_INTEGRATION: "Sentinel Integration",
+            LABEL_DEVICE: "Sentinel Device",
+            LABEL_APP: "Sentinel App",
+        }
 
 
 # ---------------------------------------------------------------------------
