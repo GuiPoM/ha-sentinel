@@ -48,14 +48,22 @@ Sentinel watches your integrations, physical devices and applications (add-ons) 
 
 ## Installation
 
-> **Home Assistant 2026.11 or newer:** Sentinel is not yet in the default Marketplace catalog. In **Settings → Marketplace**, select **Add from link**, enter `https://github.com/GuiPoM/ha-sentinel`, choose **Integration**, and select **Add**. Then open the Sentinel repository page, select **Install**, and follow the setup flow.
+> **Home Assistant 2026.11 or newer:** Sentinel is not yet in the default Marketplace catalog. Use the button below to add the repository.
 >
-> **Home Assistant 2026.8 through 2026.10:** Sentinel is not in the default HACS catalog. In HACS, open **Integrations → Custom repositories**, add `https://github.com/GuiPoM/ha-sentinel` with type **Integration**, install Sentinel, restart Home Assistant, and add it from **Settings → Devices & Services → Add Integration**.
+> **Home Assistant 2026.8 through 2026.10:** Sentinel is not in the default HACS catalog. Use the HACS button below to add the custom repository.
 >
 > **Home Assistant 2026.7 or older:** use Sentinel **0.7.4**. Sentinel 0.8.0 requires Home Assistant 2026.8.0 or newer.
 
 <!-- ha-marketplace:exclude-start -->
-[![Open Sentinel in Home Assistant Marketplace (or HACS on older supported versions)](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=GuiPoM&repository=ha-sentinel&category=integration)
+### Home Assistant 2026.11+
+
+[![Open Sentinel in the Home Assistant Marketplace](https://my.home-assistant.io/badges/marketplace_repository.svg)](https://my.home-assistant.io/redirect/marketplace_repository/?owner=GuiPoM&repository=ha-sentinel&category=integration)
+
+### Home Assistant 2026.8–2026.10
+
+[![Open Sentinel in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=GuiPoM&repository=ha-sentinel&category=integration)
+
+After installation, add Sentinel from **Settings → Devices & Services → Add Integration**.
 
 <details>
 <summary>Install via HACS (Home Assistant 2026.8–2026.10)</summary>
