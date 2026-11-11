@@ -62,12 +62,11 @@ Sentinel watches your integrations, physical devices and applications (add-ons) 
 
 1. In HACS, go to **Integrations** and search for **Sentinel**.
 2. Install Sentinel.
-4. Restart Home Assistant
-5. Go to **Settings → Devices & Services → Add Integration** → search **Sentinel**
-6. Sentinel starts immediately with sensible defaults — no configuration required
+3. Restart Home Assistant.
+4. Go to **Settings → Devices & Services → Add Integration** and search for **Sentinel**.
+5. Sentinel starts immediately with sensible defaults — no configuration required.
 
 </details>
-<!-- ha-marketplace:exclude-end -->
 
 <details>
 <summary>Manual installation</summary>
@@ -75,6 +74,7 @@ Sentinel watches your integrations, physical devices and applications (add-ons) 
 Copy `custom_components/sentinel/` to your `<config>/custom_components/` directory and restart.
 
 </details>
+<!-- ha-marketplace:exclude-end -->
 
 ---
 
