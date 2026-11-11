@@ -10,7 +10,13 @@
 
 Sentinel watches your integrations, physical devices and applications (add-ons) in real time. No polling. No YAML. No manual entity wrangling. When something goes wrong, you know immediately.
 
-> **Version 0.8.0 breaking change:** Sentinel now requires Home Assistant 2026.8 or newer. This follows Home Assistant's single-config-entry device registry model and removes support for the deprecated multi-entry device API.
+> ## ⚠️ IMPORTANT: VERSION 0.8.0 BREAKING CHANGE
+>
+> **Sentinel 0.8.0 requires Home Assistant 2026.8.0 or newer.**
+>
+> Do **not** install or update to Sentinel 0.8.0 until Home Assistant has been updated to 2026.8.0 or newer. Sentinel 0.8.0 uses Home Assistant's new single-config-entry device registry API and no longer supports the deprecated multi-entry API.
+>
+> If you are running Home Assistant 2026.7 or older, stay on **Sentinel 0.7.4**.
 
 ---
 
