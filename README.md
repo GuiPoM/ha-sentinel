@@ -50,7 +50,7 @@ Sentinel watches your integrations, physical devices and applications (add-ons) 
 
 > **Home Assistant 2026.11 or newer:** Sentinel is not yet in the default Marketplace catalog. In **Settings → Marketplace**, select **Add from link**, enter `https://github.com/GuiPoM/ha-sentinel`, choose **Integration**, and select **Add**. Then open the Sentinel repository page, select **Install**, and follow the setup flow.
 >
-> **Home Assistant 2026.8 through 2026.10:** install Sentinel from **HACS**, then restart Home Assistant and add Sentinel from **Settings → Devices & Services → Add Integration**.
+> **Home Assistant 2026.8 through 2026.10:** Sentinel is not in the default HACS catalog. In HACS, open **Integrations → Custom repositories**, add `https://github.com/GuiPoM/ha-sentinel` with type **Integration**, install Sentinel, restart Home Assistant, and add it from **Settings → Devices & Services → Add Integration**.
 >
 > **Home Assistant 2026.7 or older:** use Sentinel **0.7.4**. Sentinel 0.8.0 requires Home Assistant 2026.8.0 or newer.
 
@@ -60,11 +60,12 @@ Sentinel watches your integrations, physical devices and applications (add-ons) 
 <details>
 <summary>Install via HACS (Home Assistant 2026.8–2026.10)</summary>
 
-1. In HACS, go to **Integrations** and search for **Sentinel**.
-2. Install Sentinel.
-3. Restart Home Assistant.
-4. Go to **Settings → Devices & Services → Add Integration** and search for **Sentinel**.
-5. Sentinel starts immediately with sensible defaults — no configuration required.
+1. In HACS, go to **Integrations → Custom repositories**.
+2. Add `https://github.com/GuiPoM/ha-sentinel` and select **Integration**.
+3. Install Sentinel.
+4. Restart Home Assistant.
+5. Go to **Settings → Devices & Services → Add Integration** and search for **Sentinel**.
+6. Sentinel starts immediately with sensible defaults — no configuration required.
 
 </details>
 
