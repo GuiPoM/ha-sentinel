@@ -17,6 +17,7 @@
         "title": "Options Sentinel",
         "data": {
           "fire_events": "Émettre des événements sur le bus HA",
+          "expose_details": "Exposer les noms détaillés et messages d'erreur",
           "grace_period": "Délai de grâce (secondes)",
           "excluded_entries": "Intégrations exclues",
           "ignored_device_sources": "Sources d'appareils ignorées",
@@ -26,6 +27,7 @@
         },
         "data_description": {
           "fire_events": "Émet un événement `sentinel_item_changed` sur le bus HA à chaque changement d'état. Nécessaire pour les automations.",
+          "expose_details": "⚠️ AVERTISSEMENT DE CONFIDENTIALITÉ : Home Assistant fournit les noms des entrées et les messages d'erreur bruts sans les anonymiser. Si cette option est activée, Sentinel peut publier des adresses e-mail, noms, identifiants de compte, noms d'hôtes ou autres données confidentielles dans les noms d'entités, attributs, événements et Recorder. Laissez cette option désactivée sauf si vous acceptez explicitement cette exposition.",
           "grace_period": "Durée pendant laquelle une intégration doit rester en erreur avant d'être signalée (0 = immédiat).",
           "excluded_entries": "Intégrations à exclure de la surveillance. Seul l'état de l'intégration est exclu — ses appareils physiques restent surveillés.",
           "ignored_device_sources": "Sources d'appareils à exclure de la surveillance (ex : mobile_app, cast). Seuls les appareils de ces sources sont exclus — l'état de l'intégration elle-même reste surveillé. Les sources sont listées depuis votre installation.",

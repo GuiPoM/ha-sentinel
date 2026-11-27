@@ -22,6 +22,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .const import DOMAIN, PROVIDER_APPS, PROVIDER_DEVICES, PROVIDER_INTEGRATIONS, SIGNAL_SENTINEL_UPDATE
 from .coordinator import SentinelCoordinator
 from .entity_base import sentinel_device_info
+from .event_payload import public_item_name
 from .providers import HealthItem
 
 _LOGGER = logging.getLogger(__name__)
@@ -111,7 +112,8 @@ class SentinelBinarySensor(BinarySensorEntity):
         self._item = item
         self._attr_unique_id = f"{DOMAIN}_{item.id}"
         domain = item.extra.get("domain", "") or item.extra.get("source", "").lower()
-        self._attr_name = f"{item.name} ({domain})" if domain else item.name
+        name = public_item_name(item, expose_details=coordinator.expose_details)
+        self._attr_name = f"{name} ({domain})" if domain else name
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -134,7 +136,7 @@ class SentinelBinarySensor(BinarySensorEntity):
             "failure_count": self._item.failure_count,
             "can_reload": self._item.can_reload,
         }
-        if self._item.reason:
+        if self._coordinator.expose_details and self._item.reason:
             attrs["reason"] = self._item.reason
         attrs.update(self._item.extra)
         return attrs

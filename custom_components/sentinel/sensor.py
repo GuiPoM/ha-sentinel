@@ -15,6 +15,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .const import DOMAIN, MAX_PROBLEMS_ATTRIBUTE_BYTES, SIGNAL_SENTINEL_UPDATE
 from .coordinator import SentinelCoordinator
 from .entity_base import sentinel_device_info
+from .event_payload import public_item_name
 from .problem_payload import build_problem_attributes
 from .providers import HealthItem
 
@@ -65,10 +66,12 @@ class SentinelProblemCountSensor(SensorEntity):
         problems = [
             {
                 "id": item.id,
-                "name": item.name,
+                "name": public_item_name(
+                    item, expose_details=self._coordinator.expose_details
+                ),
                 "provider": str(item.provider),
                 "state": str(item.state),
-                "reason": item.reason,
+                "reason": item.reason if self._coordinator.expose_details else None,
             }
             for item in self._coordinator.get_all_items()
             if not item.healthy
