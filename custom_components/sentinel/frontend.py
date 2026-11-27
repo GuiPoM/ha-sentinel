@@ -20,6 +20,7 @@ CARD_URL = f"/{DOMAIN}/ha-sentinel.js"
 DATA_CARD_URL = f"{DOMAIN}_card_url"
 LEGACY_PATHS = {
     "/hacsfiles/lovelace-ha-sentinel/ha-sentinel.js",
+    "/local/community/lovelace-ha-sentinel/ha-sentinel.js",
     "/local/ha-sentinel.js",
 }
 
@@ -37,7 +38,8 @@ async def async_setup_cards(hass: HomeAssistant) -> Callable[[], None] | None:
     try:
         # Leave existing standalone installations alone rather than loading two
         # versions of the same custom elements. No user resources are deleted.
-        urls = set(hass.data.get(frontend.DATA_EXTRA_MODULE_URL, set()))
+        module_manager = hass.data.get(frontend.DATA_EXTRA_MODULE_URL)
+        urls = set(module_manager.urls) if module_manager is not None else set()
         if lovelace := hass.data.get(LOVELACE_DATA):
             resources = lovelace.resources
             if not resources.loaded:
@@ -68,7 +70,8 @@ async def async_setup_cards(hass: HomeAssistant) -> Callable[[], None] | None:
     @callback
     def remove_cards() -> None:
         """Remove only our module URL; HTTP routes persist across entry reloads."""
-        if url in hass.data.get(frontend.DATA_EXTRA_MODULE_URL, set()):
+        manager = hass.data.get(frontend.DATA_EXTRA_MODULE_URL)
+        if manager is not None and url in manager.urls:
             frontend.remove_extra_js_url(hass, url)
 
     return remove_cards
