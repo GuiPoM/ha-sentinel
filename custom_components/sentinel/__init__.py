@@ -8,6 +8,7 @@ import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.helpers import config_validation as cv, entity_registry as er
+from homeassistant.helpers.service import async_register_admin_service
 
 from .const import DOMAIN
 from .coordinator import SentinelCoordinator
@@ -86,7 +87,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         _LOGGER.info("Sentinel purge: %d entities removed — restart HA", len(to_remove))
 
-    hass.services.async_register(
+    async_register_admin_service(
+        hass,
         DOMAIN, SERVICE_RELOAD, handle_reload, schema=SERVICE_RELOAD_SCHEMA
     )
     hass.services.async_register(
@@ -116,10 +118,15 @@ def _cleanup_orphaned_entities(
     coordinator: SentinelCoordinator,
 ) -> None:
     """Remove entities in the registry that are no longer monitored."""
+    if coordinator.app_inventory is None:
+        # Entity unique IDs do not encode the provider. Without an app inventory
+        # we cannot safely distinguish removed apps from temporarily unseen ones.
+        return
     registry = er.async_get(hass)
     known_ids = {f"{DOMAIN}_{item.id}" for item in coordinator.get_all_items()}
     # Also keep the global problems sensor
     known_ids.add(f"{DOMAIN}_{entry.entry_id}_problem_count")
+    known_ids.update(f"{DOMAIN}_{slug}" for slug in coordinator.app_inventory)
 
     _LOGGER.debug("Sentinel cleanup: known_ids=%s", known_ids)
 

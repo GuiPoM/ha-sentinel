@@ -17,6 +17,7 @@
         "title": "Sentinel Options",
         "data": {
           "fire_events": "Fire events on the HA bus",
+          "expose_details": "Expose detailed names and error messages",
           "grace_period": "Grace period (seconds)",
           "excluded_entries": "Excluded integrations",
           "ignored_device_sources": "Ignored device sources",
@@ -26,6 +27,7 @@
         },
         "data_description": {
           "fire_events": "Fire a `sentinel_item_changed` event on the HA event bus on every state change. Required for automations.",
+          "expose_details": "⚠️ PRIVACY WARNING: Home Assistant provides config-entry names and raw error messages without anonymizing them. When enabled, Sentinel may publish emails, names, account identifiers, hostnames or other confidential data in entity names, attributes, events and Recorder. Keep disabled unless you explicitly accept this exposure.",
           "grace_period": "How long an integration must remain in a failed state before being reported (0 = immediate).",
           "excluded_entries": "Integrations to exclude from monitoring. Only the integration state is excluded — its physical devices are still monitored.",
           "ignored_device_sources": "Device sources to exclude from monitoring (e.g. mobile_app, cast). Only devices from these sources are excluded — the integration state itself is still monitored. Sources are listed from your current installation.",

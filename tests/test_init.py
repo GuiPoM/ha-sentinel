@@ -1,7 +1,8 @@
 """Integration tests for Sentinel — full setup/teardown with real hass."""
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
+from pathlib import Path
 
 from custom_components.sentinel.const import (
     CONF_FIRE_EVENTS,
@@ -18,9 +19,14 @@ from homeassistant.config_entries import (
     SIGNAL_CONFIG_ENTRY_CHANGED,
     ConfigEntryChange,
 )
-from homeassistant.core import HomeAssistant
+from homeassistant.core import Context, HomeAssistant
+from homeassistant.exceptions import Unauthorized
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.dispatcher import async_dispatcher_send
+from custom_components.sentinel import _cleanup_orphaned_entities
+from custom_components.sentinel.coordinator import SentinelCoordinator
+from custom_components.sentinel.providers.apps import AppsProvider
+from custom_components.sentinel.const import PROVIDER_APPS
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -128,6 +134,77 @@ async def test_service_reload_exists(
     """Test that sentinel.reload_item service is registered."""
     await setup_sentinel(hass, sentinel_config_entry)
     assert hass.services.has_service(DOMAIN, "reload_item")
+
+
+@pytest.mark.parametrize("is_admin", [False, True])
+async def test_reload_service_checks_admin_permissions(
+    hass: HomeAssistant,
+    sentinel_config_entry: MockConfigEntry,
+    is_admin: bool,
+) -> None:
+    """Reject non-admin calls before any reload operation takes place."""
+    await setup_sentinel(hass, sentinel_config_entry)
+    coordinator = hass.data[DOMAIN][sentinel_config_entry.entry_id]
+    with (
+        patch.object(hass.auth, "async_get_user", new=AsyncMock(
+            return_value=MagicMock(is_admin=is_admin)
+        )),
+        patch.object(coordinator, "async_reload_item", new=AsyncMock()) as reload,
+    ):
+        if is_admin:
+            await hass.services.async_call(
+                DOMAIN, "reload_item", {"item_id": "app"}, blocking=True,
+                context=Context(user_id="test-user"),
+            )
+            reload.assert_awaited_once_with("app")
+        else:
+            with pytest.raises(Unauthorized):
+                await hass.services.async_call(
+                    DOMAIN, "reload_item", {"item_id": "app"}, blocking=True,
+                    context=Context(user_id="test-user"),
+                )
+            reload.assert_not_awaited()
+
+
+@pytest.mark.parametrize("inventory, retained", [
+    (None, True), ({"app"}, True), (set(), False),
+])
+async def test_cleanup_requires_authoritative_app_inventory(
+    hass: HomeAssistant,
+    sentinel_config_entry: MockConfigEntry,
+    inventory: set[str] | None,
+    retained: bool,
+) -> None:
+    """A fresh provider must not erase registered apps after a failed scan."""
+    coordinator = SentinelCoordinator(hass, {})
+    provider = AppsProvider(hass)
+    coordinator._providers[PROVIDER_APPS] = provider
+    registry = er.async_get(hass)
+    entity = registry.async_get_or_create(
+        "binary_sensor", DOMAIN, f"{DOMAIN}_app",
+        config_entry=sentinel_config_entry,
+    )
+    with patch(
+        "custom_components.sentinel.providers.apps._get_addons_with_state",
+        new=AsyncMock(return_value=(
+            None if inventory is None else [
+                {"slug": slug, "state": "startup"} for slug in inventory
+            ]
+        )),
+    ) as scan:
+        await provider._async_scan()
+    scan.assert_awaited_once()
+    _cleanup_orphaned_entities(hass, sentinel_config_entry, coordinator)
+    assert (registry.async_get(entity.entity_id) is not None) is retained
+
+def test_services_yaml_uses_registered_reload_item_name() -> None:
+    """The service metadata must use the same name as the registered service."""
+    services = (
+        Path(__file__).parents[1] / "custom_components" / "sentinel" / "services.yaml"
+    ).read_text(encoding="utf-8")
+
+    assert "reload_item:" in services
+    assert "\nreload:\n" not in services
 
 
 async def test_unload_removes_services(

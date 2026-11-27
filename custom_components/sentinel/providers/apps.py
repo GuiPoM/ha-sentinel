@@ -57,7 +57,7 @@ _WARNING_STATES = {_STATE_UNKNOWN}
 _TRANSIENT_STATES = {_STATE_STARTUP}
 
 
-async def _get_addons_with_state(hass: HomeAssistant) -> list[Any]:
+async def _get_addons_with_state(hass: HomeAssistant) -> list[Any] | None:
     """Return installed add-ons with fresh real-time state via addon_info().
 
     Uses addons.list() to enumerate slugs, then addon_info(slug) per add-on
@@ -72,7 +72,7 @@ async def _get_addons_with_state(hass: HomeAssistant) -> list[Any]:
             return []
     except Exception as err:
         _LOGGER.debug("Sentinel AppsProvider: could not list add-ons: %s", err)
-        return []
+        return None
 
     result = []
     for addon in addons_list:
@@ -125,6 +125,7 @@ class AppsProvider(HealthProvider):
         self._previous_healthy: dict[str, bool] = {}
         self._scan_lock = asyncio.Lock()
         self._scan_tasks: set[asyncio.Task[None]] = set()
+        self.inventory_slugs: set[str] | None = None
 
     @property
     def provider_id(self) -> str:
@@ -144,6 +145,7 @@ class AppsProvider(HealthProvider):
         if self._stopped or self.hass.is_stopping:
             return
         if not self.available:
+            self.inventory_slugs = set()
             _LOGGER.debug("Sentinel AppsProvider: not on HA OS, skipping setup")
             return
 
@@ -222,7 +224,7 @@ class AppsProvider(HealthProvider):
             if self._stopped or self.hass.is_stopping:
                 return
             addons = await _get_addons_with_state(self.hass)
-            if self._stopped or self.hass.is_stopping or not addons:
+            if self._stopped or self.hass.is_stopping or addons is None:
                 return
 
             seen_slugs: set[str] = set()
@@ -232,13 +234,14 @@ class AppsProvider(HealthProvider):
                 if not slug:
                     continue
 
+                seen_slugs.add(slug)
                 state = self._get_state(addon)
                 if state in _TRANSIENT_STATES:
                     continue
 
-                seen_slugs.add(slug)
                 self._update_addon(addon, slug, state)
 
+            self.inventory_slugs = seen_slugs
             # Clean up removed add-ons
             for slug in list(self._items.keys()):
                 if slug not in seen_slugs:

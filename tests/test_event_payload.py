@@ -29,7 +29,7 @@ def test_public_payload_contract_remains_stable() -> None:
         extra={"domain": "light", "source": "hue"},
     )
 
-    payload = _MODULE.build_item_changed_payload(item)
+    payload = _MODULE.build_item_changed_payload(item, expose_details=True)
 
     assert set(payload) == {
         "item_id", "provider", "name", "domain", "source", "item_type",
@@ -49,3 +49,41 @@ def test_public_payload_contract_remains_stable() -> None:
         "failure_count": 2,
         "since": "2026-10-28T00:00:00+00:00",
     }
+
+
+def test_public_payload_hides_details_by_default() -> None:
+    """Do not expose user-provided names or reasons by default."""
+    item = SimpleNamespace(
+        id="entry-1",
+        provider="integrations",
+        name="alice@example.com",
+        healthy=False,
+        state="setup_error",
+        severity="error",
+        reason="Account alice@example.com failed",
+        failure_count=1,
+        since=datetime(2026, 10, 28, tzinfo=UTC),
+        extra={"domain": "demo", "source": "user"},
+    )
+
+    payload = _MODULE.build_item_changed_payload(item)
+
+    assert payload["name"] == "demo"
+    assert payload["reason"] is None
+
+
+def test_public_item_name_uses_stable_identifiers_without_details() -> None:
+    """Each provider gets a stable non-user-provided public name by default."""
+    assert _MODULE.public_item_name(
+        SimpleNamespace(id="light-1", provider="devices", name="Living room"),
+        expose_details=False,
+    ) == "Device light-1"
+    assert _MODULE.public_item_name(
+        SimpleNamespace(
+            id="addon-1",
+            provider="apps",
+            name="Private add-on name",
+            extra={"slug": "private-addon"},
+        ),
+        expose_details=False,
+    ) == "private-addon"

@@ -17,6 +17,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_send
 from .const import (
     CONF_APPS_POLL_INTERVAL,
     CONF_EXCLUDED_ENTRIES,
+    CONF_EXPOSE_DETAILS,
     CONF_FIRE_EVENTS,
     CONF_GRACE_PERIOD,
     CONF_IGNORED_DEVICE_IDS,
@@ -52,6 +53,11 @@ class SentinelCoordinator:
         self._stopped = False
         self._unsub_stop: Callable[[], None] | None = None
         self._unload_lock = asyncio.Lock()
+
+    @property
+    def expose_details(self) -> bool:
+        """Return whether user-provided names and reasons may be exposed."""
+        return bool(self._config.get(CONF_EXPOSE_DETAILS, False))
 
     async def async_setup(self) -> None:
         """Set up all providers."""
@@ -151,7 +157,7 @@ class SentinelCoordinator:
         if fire_events:
             self.hass.bus.async_fire(
                 EVENT_ITEM_CHANGED,
-                build_item_changed_payload(item),
+                build_item_changed_payload(item, expose_details=self.expose_details),
             )
 
         async_dispatcher_send(self.hass, SIGNAL_SENTINEL_UPDATE, item)
@@ -173,6 +179,14 @@ class SentinelCoordinator:
     def get_problem_count(self) -> int:
         """Return the total number of unhealthy items."""
         return sum(1 for item in self.get_all_items() if not item.healthy)
+
+    @property
+    def app_inventory(self) -> set[str] | None:
+        """Return the authoritative app inventory, or None when unavailable."""
+        provider = self._providers.get(PROVIDER_APPS)
+        if isinstance(provider, AppsProvider):
+            return provider.inventory_slugs
+        return None
 
     async def async_reload_item(self, item_id: str) -> bool:
         """Reload an item by ID, trying all providers."""

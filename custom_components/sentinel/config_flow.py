@@ -23,12 +23,14 @@ from homeassistant.helpers.selector import (
 from .const import (
     CONF_APPS_POLL_INTERVAL,
     CONF_EXCLUDED_ENTRIES,
+    CONF_EXPOSE_DETAILS,
     CONF_FIRE_EVENTS,
     CONF_GRACE_PERIOD,
     CONF_IGNORED_DEVICE_IDS,
     CONF_IGNORED_DEVICE_SOURCES,
     CONF_WATCH_STOPPED_ADDONS,
     DEFAULT_APPS_POLL_INTERVAL,
+    DEFAULT_EXPOSE_DETAILS,
     DEFAULT_FIRE_EVENTS,
     DEFAULT_GRACE_PERIOD,
     DEFAULT_WATCH_STOPPED_ADDONS,
@@ -61,6 +63,7 @@ class SentinelConfigFlow(ConfigFlow, domain=DOMAIN):
             data={},
             options={
                 CONF_FIRE_EVENTS: DEFAULT_FIRE_EVENTS,
+                CONF_EXPOSE_DETAILS: DEFAULT_EXPOSE_DETAILS,
                 CONF_GRACE_PERIOD: DEFAULT_GRACE_PERIOD,
                 CONF_EXCLUDED_ENTRIES: [],
                 CONF_IGNORED_DEVICE_SOURCES: [],
@@ -119,6 +122,10 @@ class SentinelOptionsFlow(OptionsFlow):
                 vol.Optional(
                     CONF_FIRE_EVENTS,
                     default=current.get(CONF_FIRE_EVENTS, DEFAULT_FIRE_EVENTS),
+                ): BooleanSelector(),
+                vol.Optional(
+                    CONF_EXPOSE_DETAILS,
+                    default=current.get(CONF_EXPOSE_DETAILS, DEFAULT_EXPOSE_DETAILS),
                 ): BooleanSelector(),
                 # 2 — Integrations
                 vol.Optional(

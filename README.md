@@ -10,6 +10,14 @@
 
 Sentinel watches your integrations, physical devices and applications (add-ons) in real time. No polling. No YAML. No manual entity wrangling. When something goes wrong, you know immediately.
 
+> ## ⚠️ PRIVACY WARNING — HOME ASSISTANT DATA IS EXPOSED AS PROVIDED
+>
+> Sentinel keeps detailed integration names and raw setup-error messages **disabled by default**. Home Assistant Core provides these values without anonymizing them; they may contain email addresses, names, account identifiers, hostnames, or other confidential information.
+>
+> Sentinel does not generate or anonymize this information. If **Expose detailed names and error messages** is enabled, these values may appear in entity names, attributes, events, Recorder, and external integrations. Enable it only if you explicitly accept this exposure. Rename your Home Assistant config entries or leave the option disabled if you do not want these values published.
+>
+> On upgrade with details disabled, existing automatically generated entity IDs are replaced with neutral identifiers. Update automations that reference those IDs. User-customized names and IDs are preserved: review them yourself if they contain personal information. Previously recorded history and events are not erased by disabling this option.
+
 > ## ⚠️ IMPORTANT: VERSION 0.8.0 BREAKING CHANGE
 >
 > **Sentinel 0.8.0 requires Home Assistant 2026.8.0 or newer.**

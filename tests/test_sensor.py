@@ -12,7 +12,9 @@ from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.sentinel.const import (
+    CONF_EXPOSE_DETAILS,
     DOMAIN,
+    EVENT_ITEM_CHANGED,
     MAX_PROBLEMS_ATTRIBUTE_BYTES,
     PROVIDER_DEVICES,
     SIGNAL_SENTINEL_UPDATE,
@@ -20,6 +22,10 @@ from custom_components.sentinel.const import (
 from custom_components.sentinel.coordinator import SentinelCoordinator
 from custom_components.sentinel.providers import HealthItem, HealthProvider
 from custom_components.sentinel.sensor import SentinelProblemCountSensor
+from custom_components.sentinel.binary_sensor import (
+    SentinelBinarySensor, _neutralize_generated_entity_id,
+)
+from homeassistant.helpers import entity_registry as er
 
 
 def make_item(index: int, *, healthy: bool = False) -> HealthItem:
@@ -38,7 +44,7 @@ def make_item(index: int, *, healthy: bool = False) -> HealthItem:
 @pytest.fixture
 def coordinator(hass: HomeAssistant) -> SentinelCoordinator:
     """Use the real coordinator's item aggregation."""
-    coordinator = SentinelCoordinator(hass, {})
+    coordinator = SentinelCoordinator(hass, {CONF_EXPOSE_DETAILS: True})
     provider = Mock(spec=HealthProvider)
     provider.get_items.return_value = {}
     coordinator._providers[PROVIDER_DEVICES] = provider
@@ -50,6 +56,72 @@ def set_items(coordinator: SentinelCoordinator, items: list[HealthItem]) -> None
     coordinator._providers[PROVIDER_DEVICES].get_items.return_value = {
         item.id: item for item in items
     }
+
+
+@pytest.mark.parametrize("expose_details", [False, True])
+def test_privacy_controls_binary_and_global_sensor_attributes(
+    hass: HomeAssistant, expose_details: bool,
+) -> None:
+    """Names, reasons and raw entity IDs are published only after opt-in."""
+    coordinator = SentinelCoordinator(hass, {CONF_EXPOSE_DETAILS: expose_details})
+    provider = Mock(spec=HealthProvider)
+    item = make_item(0)
+    item.name = "alice@example.com"
+    item.reason = "Account alice@example.com failed"
+    item.extra = {"unavailable_entities": ["sensor.alice_example_com"], "source": "demo"}
+    provider.get_items.return_value = {item.id: item}
+    coordinator._providers[PROVIDER_DEVICES] = provider
+    binary = SentinelBinarySensor(coordinator, item)
+    sensor = SentinelProblemCountSensor(coordinator, "sentinel_entry")
+    problem = sensor.extra_state_attributes["problems"][0]
+    assert ("alice@example.com" in binary.name) is expose_details
+    assert ("reason" in binary.extra_state_attributes) is expose_details
+    assert ("unavailable_entities" in binary.extra_state_attributes) is expose_details
+    assert (problem["name"] == item.name) is expose_details
+    assert problem["reason"] == (item.reason if expose_details else None)
+
+
+@pytest.mark.parametrize("customized", [False, True])
+def test_privacy_migrates_generated_ids_but_preserves_custom_ids(
+    hass: HomeAssistant, customized: bool,
+) -> None:
+    """Only integration-generated IDs are renamed during a privacy upgrade."""
+    registry = er.async_get(hass)
+    item = make_item(0)
+    coordinator = SentinelCoordinator(hass, {})
+    binary = SentinelBinarySensor(coordinator, item)
+    entry = registry.async_get_or_create(
+        "binary_sensor", DOMAIN, binary.unique_id,
+        suggested_object_id="my_custom_sensor" if customized else "sentinel_alice_example_com",
+        original_name="alice@example.com",
+    )
+    _neutralize_generated_entity_id(registry, binary)
+    actual_id = registry.async_get_entity_id("binary_sensor", DOMAIN, binary.unique_id)
+    assert actual_id == (
+        entry.entity_id if customized else "binary_sensor.sentinel_devices_device_0"
+    )
+
+
+@pytest.mark.parametrize("expose_details", [False, True])
+async def test_coordinator_applies_privacy_option_to_public_events(
+    hass: HomeAssistant, expose_details: bool,
+) -> None:
+    """Verify the configured privacy boundary on the actual HA event bus."""
+    coordinator = SentinelCoordinator(hass, {CONF_EXPOSE_DETAILS: expose_details})
+    item = make_item(0)
+    item.name = "alice@example.com"
+    item.reason = "Private account error"
+    events = []
+    unsubscribe = hass.bus.async_listen(EVENT_ITEM_CHANGED, events.append)
+    try:
+        coordinator._on_item_changed(item)
+        await hass.async_block_till_done()
+    finally:
+        unsubscribe()
+    assert len(events) == 1
+    payload = events[0].data
+    assert payload["name"] == (item.name if expose_details else f"Device {item.id}")
+    assert payload["reason"] == (item.reason if expose_details else None)
 
 
 def make_items_until_truncated(coordinator: SentinelCoordinator) -> list[HealthItem]:
@@ -133,7 +205,13 @@ def test_payload_stops_when_minimum_entry_cannot_fit(
     assert len(json_bytes(attributes)) <= MAX_PROBLEMS_ATTRIBUTE_BYTES
 
 
-@pytest.mark.parametrize("options", [{}, {"fire_events": False}])
+@pytest.mark.parametrize(
+    "options",
+    [
+        {CONF_EXPOSE_DETAILS: True},
+        {"fire_events": False, CONF_EXPOSE_DETAILS: True},
+    ],
+)
 async def test_published_sensor_updates(
     hass: HomeAssistant,
     options: dict,

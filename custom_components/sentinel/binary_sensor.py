@@ -18,10 +18,12 @@ from homeassistant.helpers import entity_registry as er, label_registry as lr
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.util import slugify
 
 from .const import DOMAIN, PROVIDER_APPS, PROVIDER_DEVICES, PROVIDER_INTEGRATIONS, SIGNAL_SENTINEL_UPDATE
 from .coordinator import SentinelCoordinator
 from .entity_base import sentinel_device_info
+from .event_payload import public_item_name
 from .providers import HealthItem
 
 _LOGGER = logging.getLogger(__name__)
@@ -76,6 +78,10 @@ async def async_setup_entry(
         SentinelBinarySensor(coordinator, item)
         for item in coordinator.get_all_items()
     ]
+    if not coordinator.expose_details:
+        registry = er.async_get(hass)
+        for entity in entities:
+            _neutralize_generated_entity_id(registry, entity)
     async_add_entities(entities)
 
     # Listen for new items being added dynamically
@@ -87,11 +93,40 @@ async def async_setup_entry(
         uid = f"{DOMAIN}_{item.id}"
         if uid not in known_ids:
             known_ids.add(uid)
-            async_add_entities([SentinelBinarySensor(coordinator, item)])
+            entity = SentinelBinarySensor(coordinator, item)
+            if not coordinator.expose_details:
+                _neutralize_generated_entity_id(er.async_get(hass), entity)
+            async_add_entities([entity])
 
     entry.async_on_unload(
         async_dispatcher_connect(hass, SIGNAL_SENTINEL_UPDATE, _handle_update)
     )
+
+
+@callback
+def _neutralize_generated_entity_id(
+    registry: er.EntityRegistry, entity: SentinelBinarySensor,
+) -> None:
+    """Neutralize old generated IDs without rewriting user-customized IDs."""
+    entity_id = registry.async_get_entity_id("binary_sensor", DOMAIN, entity.unique_id)
+    if entity_id is None or (entry := registry.async_get(entity_id)) is None:
+        return
+    if entry.name is not None or not entry.original_name:
+        return
+    generated_id = f"binary_sensor.{slugify(f'Sentinel {entry.original_name}')}"
+    suffix = entity_id.removeprefix(f"{generated_id}_")
+    if entity_id != generated_id and not (
+        entity_id.startswith(f"{generated_id}_") and suffix.isdigit()
+    ):
+        return
+    neutral_id = f"binary_sensor.sentinel_{entity._item.provider}_{slugify(entity._item.id)}"
+    candidate = neutral_id
+    index = 2
+    while registry.async_get(candidate) is not None and candidate != entity_id:
+        candidate = f"{neutral_id}_{index}"
+        index += 1
+    if candidate != entity_id:
+        registry.async_update_entity(entity_id, new_entity_id=candidate)
 
 
 class SentinelBinarySensor(BinarySensorEntity):
@@ -111,7 +146,8 @@ class SentinelBinarySensor(BinarySensorEntity):
         self._item = item
         self._attr_unique_id = f"{DOMAIN}_{item.id}"
         domain = item.extra.get("domain", "") or item.extra.get("source", "").lower()
-        self._attr_name = f"{item.name} ({domain})" if domain else item.name
+        name = public_item_name(item, expose_details=coordinator.expose_details)
+        self._attr_name = f"{name} ({domain})" if domain else name
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -134,9 +170,17 @@ class SentinelBinarySensor(BinarySensorEntity):
             "failure_count": self._item.failure_count,
             "can_reload": self._item.can_reload,
         }
-        if self._item.reason:
+        if self._coordinator.expose_details and self._item.reason:
             attrs["reason"] = self._item.reason
-        attrs.update(self._item.extra)
+        if self._coordinator.expose_details:
+            attrs.update(self._item.extra)
+        else:
+            # Do not publish entity IDs derived from user-provided names.
+            attrs.update({
+                key: value for key, value in self._item.extra.items()
+                if key in {"domain", "entry_id", "source", "disabled_by",
+                           "device_id", "device_url", "slug"}
+            })
         return attrs
 
     async def async_added_to_hass(self) -> None:

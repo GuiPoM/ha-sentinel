@@ -7,12 +7,14 @@ from custom_components.sentinel.const import (
     CONF_APPS_POLL_INTERVAL,
     CONF_EXCLUDED_ENTRIES,
     CONF_FIRE_EVENTS,
+    CONF_EXPOSE_DETAILS,
     CONF_GRACE_PERIOD,
     CONF_IGNORED_DEVICE_IDS,
     CONF_IGNORED_DEVICE_SOURCES,
     CONF_WATCH_STOPPED_ADDONS,
     DEFAULT_APPS_POLL_INTERVAL,
     DEFAULT_FIRE_EVENTS,
+    DEFAULT_EXPOSE_DETAILS,
     DEFAULT_GRACE_PERIOD,
     DEFAULT_WATCH_STOPPED_ADDONS,
     DOMAIN,
@@ -45,6 +47,7 @@ async def test_config_flow_creates_entry_directly(hass: HomeAssistant, mock_setu
     assert result["title"] == "Sentinel"
     options = result["options"]
     assert options[CONF_FIRE_EVENTS] == DEFAULT_FIRE_EVENTS
+    assert options[CONF_EXPOSE_DETAILS] == DEFAULT_EXPOSE_DETAILS
     assert options[CONF_GRACE_PERIOD] == DEFAULT_GRACE_PERIOD
     assert options[CONF_EXCLUDED_ENTRIES] == []
     assert options[CONF_IGNORED_DEVICE_SOURCES] == []
@@ -88,6 +91,7 @@ async def test_options_flow_updates_options(hass: HomeAssistant, mock_setup_entr
         result["flow_id"],
         user_input={
             CONF_FIRE_EVENTS: False,
+            CONF_EXPOSE_DETAILS: True,
             CONF_GRACE_PERIOD: 60,
             CONF_EXCLUDED_ENTRIES: [],
             CONF_IGNORED_DEVICE_SOURCES: ["mobile_app"],
@@ -100,6 +104,7 @@ async def test_options_flow_updates_options(hass: HomeAssistant, mock_setup_entr
     assert result["type"] == FlowResultType.CREATE_ENTRY
     assert entry.options[CONF_GRACE_PERIOD] == 60
     assert entry.options[CONF_FIRE_EVENTS] is False
+    assert entry.options[CONF_EXPOSE_DETAILS] is True
     assert entry.options[CONF_IGNORED_DEVICE_SOURCES] == ["mobile_app"]
     assert entry.options[CONF_WATCH_STOPPED_ADDONS] is True
     assert entry.options[CONF_APPS_POLL_INTERVAL] == 120
