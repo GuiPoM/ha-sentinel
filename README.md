@@ -8,11 +8,11 @@
 
 ![Sentinel](icon.png)
 
-> ## 🧪 Sentinel 1.0.0 beta 1
+> ## 🧪 Sentinel 1.0.0 beta 2
 >
 > This is a **prerelease**, intended for testing before Sentinel 1.0.0. It requires
 > **Home Assistant 2026.8.0 or newer**. Enable beta releases in HACS/Marketplace
-> to select `v1.0.0b1`; otherwise, remain on the latest stable release.
+> to select `v1.0.0b2`; otherwise, remain on the latest stable release.
 >
 > **Upgrade changes:** detailed names and raw errors are disabled by default,
 > automatically generated entity IDs may be renamed, and the three dashboard
