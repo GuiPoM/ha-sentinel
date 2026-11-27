@@ -406,11 +406,16 @@ action: sentinel.purge
 
 ---
 
-## Lovelace Card
+## Dashboard cards
 
-Install the companion Lovelace card for a visual health dashboard:
+Sentinel includes three dashboard cards. **No separate HACS installation or
+manual JavaScript resource is required**, in either storage or YAML dashboards.
+After configuring Sentinel, refresh your browser, edit a dashboard and choose
+**Add card** → **Sentinel — Integrations**, **Sentinel — Devices** or **Sentinel — Apps**.
+The picker names and descriptions are also available in French.
+Nothing is added to your dashboards automatically; monitoring works without cards.
 
-**[GuiPoM/lovelace-ha-sentinel](https://github.com/GuiPoM/lovelace-ha-sentinel)**
+For a YAML dashboard, use the following card types:
 
 ```yaml
 # Integrations card
@@ -419,9 +424,33 @@ type: custom:ha-sentinel-card
 # Devices card
 type: custom:ha-sentinel-devices-card
 
-# Applications (add-ons) card (HA OS only)
+# Apps card (Home Assistant OS or Supervised)
 type: custom:ha-sentinel-apps-card
 ```
+
+All cards support `title` (optional), `show_ok` (default `false`) and `max_items`
+(default `10`; `0` means unlimited). The devices card also supports
+`group_by_source` (default `true`). Names and error details follow Sentinel's
+privacy option: the cards do not query private configuration-entry data.
+Problem totals include errors and warnings. An empty provider is displayed as
+**No monitored items**, rather than a healthy status. Unknown or unavailable
+Sentinel sensors are displayed as **Monitoring unavailable**, even when
+`show_ok` is disabled, and are not counted as known integration/device/app problems.
+
+### Existing standalone card installations
+
+The card types and configuration remain compatible with
+[lovelace-ha-sentinel](https://github.com/GuiPoM/lovelace-ha-sentinel).
+If a known standalone resource is present, Sentinel leaves it unchanged and
+does not load its bundled copy. To switch to the bundled cards:
+
+1. Remove the standalone Sentinel Card installation from HACS and its resource
+   from **Settings → Dashboards → Resources** (or your YAML resource list).
+2. If installed manually, remove its URL from `frontend.extra_module_url` too.
+3. Reload the Sentinel integration and hard-refresh your browser.
+
+Existing dashboard cards do not need to be recreated. Custom resource URLs that
+Sentinel cannot recognize must also be removed to avoid loading two versions.
 
 ---
 
