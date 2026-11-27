@@ -1,7 +1,7 @@
 {
   "domain": "sentinel",
   "name": "Sentinel",
-  "after_dependencies": ["hassio"],
+  "after_dependencies": ["frontend", "hassio", "lovelace"],
   "codeowners": ["@GuiPoM"],
   "config_flow": true,
   "dependencies": [],

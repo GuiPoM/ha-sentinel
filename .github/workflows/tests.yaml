@@ -21,3 +21,10 @@ jobs:
 
       - name: Run tests
         run: pytest tests/ -v
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Test bundled dashboard cards
+        run: node --test tests/test_cards.cjs

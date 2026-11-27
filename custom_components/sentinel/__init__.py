@@ -12,6 +12,7 @@ from homeassistant.helpers.service import async_register_admin_service
 
 from .const import DOMAIN
 from .coordinator import SentinelCoordinator
+from .frontend import async_setup_cards
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -106,6 +107,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Re-apply config when options are updated
     entry.async_on_unload(entry.add_update_listener(_async_update_options))
+
+    if remove_cards := await async_setup_cards(hass):
+        entry.async_on_unload(remove_cards)
 
     _LOGGER.info("Sentinel set up successfully.")
     return True
