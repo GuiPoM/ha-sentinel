@@ -12,6 +12,7 @@ from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.sentinel.const import (
+    CONF_EXPOSE_DETAILS,
     DOMAIN,
     MAX_PROBLEMS_ATTRIBUTE_BYTES,
     PROVIDER_DEVICES,
@@ -38,7 +39,7 @@ def make_item(index: int, *, healthy: bool = False) -> HealthItem:
 @pytest.fixture
 def coordinator(hass: HomeAssistant) -> SentinelCoordinator:
     """Use the real coordinator's item aggregation."""
-    coordinator = SentinelCoordinator(hass, {})
+    coordinator = SentinelCoordinator(hass, {CONF_EXPOSE_DETAILS: True})
     provider = Mock(spec=HealthProvider)
     provider.get_items.return_value = {}
     coordinator._providers[PROVIDER_DEVICES] = provider
@@ -133,7 +134,13 @@ def test_payload_stops_when_minimum_entry_cannot_fit(
     assert len(json_bytes(attributes)) <= MAX_PROBLEMS_ATTRIBUTE_BYTES
 
 
-@pytest.mark.parametrize("options", [{}, {"fire_events": False}])
+@pytest.mark.parametrize(
+    "options",
+    [
+        {CONF_EXPOSE_DETAILS: True},
+        {"fire_events": False, CONF_EXPOSE_DETAILS: True},
+    ],
+)
 async def test_published_sensor_updates(
     hass: HomeAssistant,
     options: dict,

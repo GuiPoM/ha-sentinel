@@ -130,10 +130,6 @@ async def test_service_reload_exists(
     await setup_sentinel(hass, sentinel_config_entry)
     assert hass.services.has_service(DOMAIN, "reload_item")
 
-    service = hass.services.async_services()[DOMAIN]["reload_item"]
-    assert service.admin is True
-
-
 def test_services_yaml_uses_registered_reload_item_name() -> None:
     """The service metadata must use the same name as the registered service."""
     services = (

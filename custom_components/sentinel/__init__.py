@@ -8,6 +8,7 @@ import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.helpers import config_validation as cv, entity_registry as er
+from homeassistant.helpers.service import async_register_admin_service
 
 from .const import DOMAIN
 from .coordinator import SentinelCoordinator
@@ -86,7 +87,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         _LOGGER.info("Sentinel purge: %d entities removed — restart HA", len(to_remove))
 
-    hass.services.async_register_admin_service(
+    async_register_admin_service(
+        hass,
         DOMAIN, SERVICE_RELOAD, handle_reload, schema=SERVICE_RELOAD_SCHEMA
     )
     hass.services.async_register(
