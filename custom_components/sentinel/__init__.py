@@ -86,7 +86,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         _LOGGER.info("Sentinel purge: %d entities removed — restart HA", len(to_remove))
 
-    hass.services.async_register(
+    hass.services.async_register_admin_service(
         DOMAIN, SERVICE_RELOAD, handle_reload, schema=SERVICE_RELOAD_SCHEMA
     )
     hass.services.async_register(
