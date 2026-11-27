@@ -57,7 +57,7 @@ _WARNING_STATES = {_STATE_UNKNOWN}
 _TRANSIENT_STATES = {_STATE_STARTUP}
 
 
-async def _get_addons_with_state(hass: HomeAssistant) -> list[Any]:
+async def _get_addons_with_state(hass: HomeAssistant) -> list[Any] | None:
     """Return installed add-ons with fresh real-time state via addon_info().
 
     Uses addons.list() to enumerate slugs, then addon_info(slug) per add-on
@@ -72,7 +72,7 @@ async def _get_addons_with_state(hass: HomeAssistant) -> list[Any]:
             return []
     except Exception as err:
         _LOGGER.debug("Sentinel AppsProvider: could not list add-ons: %s", err)
-        return []
+        return None
 
     result = []
     for addon in addons_list:
@@ -222,7 +222,7 @@ class AppsProvider(HealthProvider):
             if self._stopped or self.hass.is_stopping:
                 return
             addons = await _get_addons_with_state(self.hass)
-            if self._stopped or self.hass.is_stopping or not addons:
+            if self._stopped or self.hass.is_stopping or addons is None:
                 return
 
             seen_slugs: set[str] = set()

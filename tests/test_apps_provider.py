@@ -1,7 +1,7 @@
 """Tests for AppsProvider — state classification, _classify, _update_addon."""
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from custom_components.sentinel.const import PROVIDER_APPS
 from custom_components.sentinel.providers.apps import AppsProvider
@@ -181,6 +181,7 @@ class TestUpdateAddon:
         assert provider._items["mosquitto"].failure_count == 1
         provider._on_change.assert_called_once()
 
+
     def test_on_change_not_called_when_state_unchanged(self):
         """No notification if health state stays the same."""
         provider = self._make_provider()
@@ -206,6 +207,23 @@ class TestUpdateAddon:
         provider._update_addon(addon_err, "mosquitto", "error")
         assert provider._items["mosquitto"].failure_count == 1
 
+
+async def test_failed_supervisor_scan_keeps_existing_items():
+    """An unavailable Supervisor must not be treated as an empty inventory."""
+    provider = AppsProvider(MagicMock())
+    provider._update_addon(
+        {"slug": "mosquitto", "name": "Mosquitto", "state": "error"},
+        "mosquitto",
+        "error",
+    )
+
+    with patch(
+        "custom_components.sentinel.providers.apps._get_addons_with_state",
+        new=AsyncMock(return_value=None),
+    ):
+        await provider._async_scan()
+
+    assert "mosquitto" in provider._items
 
 # ---------------------------------------------------------------------------
 # available — hassio detection
