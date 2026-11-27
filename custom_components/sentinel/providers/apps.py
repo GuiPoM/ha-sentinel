@@ -125,6 +125,7 @@ class AppsProvider(HealthProvider):
         self._previous_healthy: dict[str, bool] = {}
         self._scan_lock = asyncio.Lock()
         self._scan_tasks: set[asyncio.Task[None]] = set()
+        self.inventory_slugs: set[str] | None = None
 
     @property
     def provider_id(self) -> str:
@@ -144,6 +145,7 @@ class AppsProvider(HealthProvider):
         if self._stopped or self.hass.is_stopping:
             return
         if not self.available:
+            self.inventory_slugs = set()
             _LOGGER.debug("Sentinel AppsProvider: not on HA OS, skipping setup")
             return
 
@@ -232,13 +234,14 @@ class AppsProvider(HealthProvider):
                 if not slug:
                     continue
 
+                seen_slugs.add(slug)
                 state = self._get_state(addon)
                 if state in _TRANSIENT_STATES:
                     continue
 
-                seen_slugs.add(slug)
                 self._update_addon(addon, slug, state)
 
+            self.inventory_slugs = seen_slugs
             # Clean up removed add-ons
             for slug in list(self._items.keys()):
                 if slug not in seen_slugs:

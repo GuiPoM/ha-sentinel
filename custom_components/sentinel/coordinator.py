@@ -180,6 +180,14 @@ class SentinelCoordinator:
         """Return the total number of unhealthy items."""
         return sum(1 for item in self.get_all_items() if not item.healthy)
 
+    @property
+    def app_inventory(self) -> set[str] | None:
+        """Return the authoritative app inventory, or None when unavailable."""
+        provider = self._providers.get(PROVIDER_APPS)
+        if isinstance(provider, AppsProvider):
+            return provider.inventory_slugs
+        return None
+
     async def async_reload_item(self, item_id: str) -> bool:
         """Reload an item by ID, trying all providers."""
         if self._stopped or self.hass.is_stopping:

@@ -4,7 +4,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from custom_components.sentinel.const import PROVIDER_APPS
-from custom_components.sentinel.providers.apps import AppsProvider
+from custom_components.sentinel.providers.apps import AppsProvider, _get_addons_with_state
 
 # ---------------------------------------------------------------------------
 # _classify — pure state → (is_healthy, severity) mapping
@@ -210,7 +210,7 @@ class TestUpdateAddon:
 
 async def test_failed_supervisor_scan_keeps_existing_items():
     """An unavailable Supervisor must not be treated as an empty inventory."""
-    provider = AppsProvider(MagicMock())
+    provider = AppsProvider(MagicMock(is_stopping=False))
     provider._update_addon(
         {"slug": "mosquitto", "name": "Mosquitto", "state": "error"},
         "mosquitto",
@@ -220,10 +220,49 @@ async def test_failed_supervisor_scan_keeps_existing_items():
     with patch(
         "custom_components.sentinel.providers.apps._get_addons_with_state",
         new=AsyncMock(return_value=None),
-    ):
+    ) as scan:
         await provider._async_scan()
 
+    scan.assert_awaited_once()
     assert "mosquitto" in provider._items
+
+
+async def test_starting_app_is_not_removed_from_inventory():
+    """Transient app states do not imply uninstallation."""
+    provider = AppsProvider(MagicMock(is_stopping=False))
+    provider._update_addon({"slug": "app"}, "app", "started")
+    with patch(
+        "custom_components.sentinel.providers.apps._get_addons_with_state",
+        new=AsyncMock(return_value=[{"slug": "app", "state": "startup"}]),
+    ):
+        await provider._async_scan()
+    assert provider.inventory_slugs == {"app"}
+    assert "app" in provider._items
+
+
+async def test_successful_empty_scan_removes_old_items():
+    """An authoritative empty inventory is different from a failed scan."""
+    provider = AppsProvider(MagicMock(is_stopping=False))
+    provider._update_addon({"slug": "app"}, "app", "started")
+    with patch(
+        "custom_components.sentinel.providers.apps._get_addons_with_state",
+        new=AsyncMock(return_value=[]),
+    ) as scan:
+        await provider._async_scan()
+    scan.assert_awaited_once()
+    assert provider.inventory_slugs == set()
+    assert provider.get_items() == {}
+
+
+async def test_supervisor_list_failure_returns_unknown_inventory():
+    """Listing failures are explicitly distinguishable from an empty list."""
+    client = MagicMock()
+    client.addons.list = AsyncMock(side_effect=RuntimeError("Supervisor unavailable"))
+    with patch(
+        "homeassistant.components.hassio.get_supervisor_client", return_value=client,
+    ):
+        assert await _get_addons_with_state(MagicMock()) is None
+    client.addons.list.assert_awaited_once()
 
 # ---------------------------------------------------------------------------
 # available — hassio detection
