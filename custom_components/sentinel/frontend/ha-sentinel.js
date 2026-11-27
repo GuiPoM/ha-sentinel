@@ -9,11 +9,21 @@ const PROVIDER_APPS = "apps";
 
 const LABELS = {
   en: {
-    integrations_error: "Integrations with errors",
-    devices_error: "Devices with errors",
-    apps_error: "Applications with errors",
-    no_error: "No errors detected.",
+    integrations_problem: "Integrations with problems",
+    devices_problem: "Devices with problems",
+    apps_problem: "Apps with problems",
+    no_problem: "No problems detected.",
+    no_items: "No monitored items.",
+    monitoring_unavailable: "Monitoring unavailable",
+    monitoring_unavailable_count: (n) => `Monitoring unavailable for ${n} item${n === 1 ? "" : "s"}.`,
+    integrations_name: "Sentinel — Integrations",
+    devices_name: "Sentinel — Devices",
+    apps_name: "Sentinel — Apps",
+    integrations_description: "Health of integrations monitored by Sentinel.",
+    devices_description: "Health of devices monitored by Sentinel.",
+    apps_description: "Health of apps monitored by Sentinel (Home Assistant OS or Supervised).",
     waiting: "Waiting for Home Assistant…",
+    invalid_max_items: "max_items must be a non-negative integer",
     ok: "OK",
     more_items: (hidden, total) => `+ ${hidden} more out of ${total}`,
     unavailable_count: (n) => `${n} unavailable entit${n === 1 ? "y" : "ies"}`,
@@ -26,11 +36,21 @@ const LABELS = {
     state_startup: "Starting up",
   },
   fr: {
-    integrations_error: "Intégrations en erreur",
-    devices_error: "Appareils en erreur",
-    apps_error: "Applications en erreur",
-    no_error: "Aucune erreur détectée.",
+    integrations_problem: "Intégrations avec des problèmes",
+    devices_problem: "Appareils avec des problèmes",
+    apps_problem: "Applications avec des problèmes",
+    no_problem: "Aucun problème détecté.",
+    no_items: "Aucun élément surveillé.",
+    monitoring_unavailable: "Surveillance indisponible",
+    monitoring_unavailable_count: (n) => `Surveillance indisponible pour ${n} élément${n > 1 ? "s" : ""}.`,
+    integrations_name: "Sentinel — Intégrations",
+    devices_name: "Sentinel — Appareils",
+    apps_name: "Sentinel — Applications",
+    integrations_description: "État de santé des intégrations surveillées par Sentinel.",
+    devices_description: "État de santé des appareils surveillés par Sentinel.",
+    apps_description: "État de santé des applications surveillées par Sentinel (Home Assistant OS ou Supervised).",
     waiting: "En attente de Home Assistant…",
+    invalid_max_items: "max_items doit être un entier positif ou nul",
     ok: "OK",
     more_items: (hidden, total) => `+ ${hidden} autre${hidden > 1 ? "s" : ""} sur ${total}`,
     unavailable_count: (n) => `${n} entité${n > 1 ? "s" : ""} indisponible${n > 1 ? "s" : ""}`,
@@ -101,13 +121,29 @@ function localizeState(state, labels) {
     .replace(/^./, (character) => character.toUpperCase());
 }
 
+let cardLanguage;
+
+function getLabels(hass) {
+  const documentLanguage = typeof document === "undefined" ? undefined : document.documentElement?.lang;
+  const language = hass?.language || cardLanguage || documentLanguage || "en";
+  return LABELS[language.split("-")[0]] || LABELS.en;
+}
+
+function monitoringUnavailable(entity) {
+  return entity.state !== "on" && entity.state !== "off";
+}
+
 class SentinelBaseCard extends HTMLElement {
-  set hass(hass) { this._hass = hass; this._render(); }
+  set hass(hass) {
+    this._hass = hass;
+    if (hass?.language) cardLanguage = hass.language;
+    this._render();
+  }
 
   setConfig(config) {
     if (config.max_items !== undefined
         && (!Number.isInteger(config.max_items) || config.max_items < 0)) {
-      throw new Error("max_items must be a non-negative integer");
+      throw new Error(getLabels(this._hass).invalid_max_items);
     }
     this._config = { ...config };
     this._render();
@@ -120,9 +156,10 @@ class SentinelBaseCard extends HTMLElement {
   _renderRow(entity, labels) {
     const attributes = entity.attributes;
     const isProblem = entity.state === "on";
-    const severity = isProblem ? (attributes.severity || "warning") : "ok";
-    const color = isProblem ? (COLOR[severity] || COLOR.warning) : COLOR.off;
-    const icon = isProblem ? (ICON[severity] || ICON.warning) : ICON.ok;
+    const unavailable = monitoringUnavailable(entity);
+    const severity = unavailable ? "warning" : isProblem ? (attributes.severity || "warning") : "ok";
+    const color = isProblem || unavailable ? (COLOR[severity] || COLOR.warning) : COLOR.off;
+    const icon = isProblem || unavailable ? (ICON[severity] || ICON.warning) : ICON.ok;
     const name = escapeHtml(extractDisplayName(entity));
     let subtitle = "";
     let nameHtml = name;
@@ -137,18 +174,19 @@ class SentinelBaseCard extends HTMLElement {
     } else if (this.constructor.provider === PROVIDER_APPS) {
       subtitle = attributes.slug || "";
     }
-    const state = isProblem ? localizeState(attributes.state, labels) : labels.ok;
+    const state = unavailable ? labels.monitoring_unavailable
+      : isProblem ? localizeState(attributes.state, labels) : labels.ok;
     return `<div class="row">
       <ha-icon icon="${icon}" style="color:${color}"></ha-icon>
       <div class="info"><span class="name">${nameHtml}</span>
         ${subtitle ? `<span class="secondary">${escapeHtml(subtitle)}</span>` : ""}</div>
-      <span class="value" style="color:${isProblem ? color : "var(--secondary-text-color)"}">${escapeHtml(state)}</span>
+      <span class="value" style="color:${isProblem || unavailable ? color : "var(--secondary-text-color)"}">${escapeHtml(state)}</span>
     </div>`;
   }
 
   _render() {
     if (!this._config) return;
-    const labels = LABELS[this._hass?.language?.split("-")[0]] || LABELS.en;
+    const labels = getLabels(this._hass);
     const provider = this.constructor.provider;
     const showOk = this._config.show_ok === true;
     const maxItems = this._config.max_items ?? 10;
@@ -157,9 +195,11 @@ class SentinelBaseCard extends HTMLElement {
       (entity) => entity.attributes.provider === provider
     );
     const problemCount = allEntities.filter((entity) => entity.state === "on").length;
-    let entities = allEntities.filter((entity) => showOk || entity.state === "on");
+    const hasError = allEntities.some((entity) => entity.state === "on" && entity.attributes.severity === "error");
+    const unavailableCount = allEntities.filter(monitoringUnavailable).length;
+    let entities = allEntities.filter((entity) => showOk || entity.state !== "off");
     const groupBySource = provider === PROVIDER_DEVICES && this._config.group_by_source !== false;
-    const rank = (entity) => entity.state === "on"
+    const rank = (entity) => monitoringUnavailable(entity) ? 1 : entity.state === "on"
       ? ({ error: 0, warning: 1, ok: 2 }[entity.attributes.severity] ?? 1) : 2;
     entities.sort((left, right) => {
       if (groupBySource) {
@@ -187,15 +227,22 @@ class SentinelBaseCard extends HTMLElement {
     const summaryIcon = provider === PROVIDER_DEVICES
       ? (problemCount ? "mdi:devices" : "mdi:check-network")
       : (problemCount ? "mdi:puzzle-remove" : "mdi:puzzle-check");
-    const summaryColor = problemCount ? COLOR.error : COLOR.ok;
+    const summaryColor = hasError ? COLOR.error
+      : problemCount || unavailableCount || !this._hass || !allEntities.length ? COLOR.warning : COLOR.ok;
+    let emptyMessage = labels.no_problem;
+    if (!this._hass) emptyMessage = labels.waiting;
+    else if (!allEntities.length) emptyMessage = labels.no_items;
+    const summaryStatusIcon = !hasError && (problemCount || unavailableCount || !this._hass || !allEntities.length)
+      ? ICON.warning : summaryIcon;
     this.innerHTML = `<ha-card>
       ${title !== null ? `<div class="card-header"><ha-icon icon="${this.constructor.headerIcon}"></ha-icon><span>${escapeHtml(title)}</span></div>` : ""}
       <div class="card-content"><div class="row">
-        <ha-icon icon="${summaryIcon}" style="color:${summaryColor}"></ha-icon>
+        <ha-icon icon="${summaryStatusIcon}" style="color:${summaryColor}"></ha-icon>
         <div class="info"><span class="name">${labels[this.constructor.summaryLabel]}</span></div>
         <span class="value" style="color:${summaryColor}">${problemCount}</span>
       </div><div class="divider"></div>
-      ${rows || `<div class="empty">${this._hass ? labels.no_error : labels.waiting}</div>`}</div>
+      ${unavailableCount ? `<div class="empty">${labels.monitoring_unavailable_count(unavailableCount)}</div>` : ""}
+      ${rows || `<div class="empty">${emptyMessage}</div>`}</div>
       ${hidden ? `<div class="footer">${labels.more_items(hidden, total)}</div>` : ""}
     </ha-card><style>${SHARED_CSS}</style>`;
   }
@@ -203,31 +250,32 @@ class SentinelBaseCard extends HTMLElement {
 
 class HaSentinelCard extends SentinelBaseCard {
   static provider = PROVIDER_INTEGRATIONS;
-  static summaryLabel = "integrations_error";
+  static summaryLabel = "integrations_problem";
   static headerIcon = "mdi:shield-check";
 }
 class HaSentinelDevicesCard extends SentinelBaseCard {
   static provider = PROVIDER_DEVICES;
-  static summaryLabel = "devices_error";
+  static summaryLabel = "devices_problem";
   static headerIcon = "mdi:devices";
 }
 class HaSentinelAppsCard extends SentinelBaseCard {
   static provider = PROVIDER_APPS;
-  static summaryLabel = "apps_error";
+  static summaryLabel = "apps_problem";
   static headerIcon = "mdi:puzzle";
 }
 
 window.customCards = window.customCards || [];
-for (const [type, constructor, name] of [
-  ["ha-sentinel-card", HaSentinelCard, "Sentinel Card"],
-  ["ha-sentinel-devices-card", HaSentinelDevicesCard, "Sentinel Devices Card"],
-  ["ha-sentinel-apps-card", HaSentinelAppsCard, "Sentinel Apps Card"],
+for (const [type, constructor, label] of [
+  ["ha-sentinel-card", HaSentinelCard, "integrations"],
+  ["ha-sentinel-devices-card", HaSentinelDevicesCard, "devices"],
+  ["ha-sentinel-apps-card", HaSentinelAppsCard, "apps"],
 ]) {
   if (!customElements.get(type)) customElements.define(type, constructor);
   if (!window.customCards.some((card) => card.type === type)) {
     window.customCards.push({
-      type, name, preview: true,
-      description: "Health status monitored by the Sentinel integration.",
+      type, preview: true,
+      get name() { return getLabels()[`${label}_name`]; },
+      get description() { return getLabels()[`${label}_description`]; },
       documentationURL: "https://github.com/GuiPoM/ha-sentinel#dashboard-cards",
     });
   }

@@ -411,7 +411,8 @@ action: sentinel.purge
 Sentinel includes three dashboard cards. **No separate HACS installation or
 manual JavaScript resource is required**, in either storage or YAML dashboards.
 After configuring Sentinel, refresh your browser, edit a dashboard and choose
-**Add card** → **Sentinel Card**, **Sentinel Devices Card** or **Sentinel Apps Card**.
+**Add card** → **Sentinel — Integrations**, **Sentinel — Devices** or **Sentinel — Apps**.
+The picker names and descriptions are also available in French.
 Nothing is added to your dashboards automatically; monitoring works without cards.
 
 For a YAML dashboard, use the following card types:
@@ -423,7 +424,7 @@ type: custom:ha-sentinel-card
 # Devices card
 type: custom:ha-sentinel-devices-card
 
-# Applications (add-ons) card (HA OS only)
+# Apps card (Home Assistant OS or Supervised)
 type: custom:ha-sentinel-apps-card
 ```
 
@@ -431,6 +432,10 @@ All cards support `title` (optional), `show_ok` (default `false`) and `max_items
 (default `10`; `0` means unlimited). The devices card also supports
 `group_by_source` (default `true`). Names and error details follow Sentinel's
 privacy option: the cards do not query private configuration-entry data.
+Problem totals include errors and warnings. An empty provider is displayed as
+**No monitored items**, rather than a healthy status. Unknown or unavailable
+Sentinel sensors are displayed as **Monitoring unavailable**, even when
+`show_ok` is disabled, and are not counted as known integration/device/app problems.
 
 ### Existing standalone card installations
 

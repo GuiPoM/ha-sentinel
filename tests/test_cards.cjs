@@ -10,10 +10,11 @@ const source = fs.readFileSync(path.join(__dirname,
 const types = ["ha-sentinel-card", "ha-sentinel-devices-card", "ha-sentinel-apps-card"];
 const providers = ["integrations", "devices", "apps"];
 
-function environment(existing = new Map()) {
+function environment(existing = new Map(), language = "en") {
   const context = vm.createContext({
     HTMLElement: class { innerHTML = ""; },
     window: { customCards: [] },
+    document: { documentElement: { lang: language } },
     customElements: {
       get: (name) => existing.get(name),
       define: (name, constructor) => {
@@ -131,3 +132,56 @@ test("device grouping keeps each source together and can be disabled", () => {
   assert.doesNotMatch(card.innerHTML, /class="source-header"/);
   assert.ok(card.innerHTML.indexOf("Zwave error") < card.innerHTML.indexOf("Hue healthy"));
 });
+
+test("picker names and descriptions are localized without changing card types", () => {
+  const { context, existing } = environment(new Map(), "fr-FR");
+  assert.deepEqual(Array.from(context.window.customCards, (card) => card.name), [
+    "Sentinel — Intégrations", "Sentinel — Appareils", "Sentinel — Applications",
+  ]);
+  assert.match(context.window.customCards[2].description, /applications surveillées/);
+  context.document.documentElement.lang = "en";
+  assert.equal(context.window.customCards[2].name, "Sentinel — Apps");
+  assert.match(context.window.customCards[2].description, /apps monitored/);
+  const card = new (existing.get(types[0]))();
+  card.hass = { language: "fr", states: {} };
+  assert.equal(context.window.customCards[0].name, "Sentinel — Intégrations");
+  assert.deepEqual(Array.from(context.window.customCards, (entry) => entry.type), types);
+});
+
+for (const [index, type] of types.entries()) {
+  test(`${type}: distinguish empty inventory, healthy items and unavailable monitoring`, () => {
+    const { existing } = environment();
+    const card = new (existing.get(type))();
+    card.setConfig({});
+    card.hass = { language: "en", states: {} };
+    assert.match(card.innerHTML, /No monitored items/);
+    assert.doesNotMatch(card.innerHTML, /No problems detected/);
+    card.hass = { language: "en", states: {
+      healthy: { ...state(providers[index]), state: "off" },
+    } };
+    assert.match(card.innerHTML, /No problems detected/);
+    for (const unavailableState of ["unknown", "unavailable"]) {
+      card.hass = { language: "fr", states: {
+        missing: { ...state(providers[index]), state: unavailableState },
+      } };
+      assert.match(card.innerHTML, /Surveillance indisponible/);
+      assert.doesNotMatch(card.innerHTML, /Aucun problème détecté|>OK</);
+    }
+  });
+
+  test(`${type}: warning states count as problems, not errors`, () => {
+    const { existing } = environment();
+    const card = new (existing.get(type))();
+    card.setConfig({});
+    card.hass = { language: "en", states: {
+      warning: state(providers[index], { severity: "warning", state: "setup_retry" }),
+    } };
+    assert.match(card.innerHTML, /with problems/);
+    assert.doesNotMatch(card.innerHTML, /with errors|No problems detected/);
+    assert.match(card.innerHTML, /Setup retry/);
+    assert.doesNotMatch(card.innerHTML, /var\(--error-color/);
+    card.hass = { ...card._hass, language: "fr" };
+    assert.match(card.innerHTML, /avec des problèmes/);
+    assert.doesNotMatch(card.innerHTML, /en erreur/);
+  });
+}
