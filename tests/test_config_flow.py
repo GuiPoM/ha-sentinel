@@ -20,10 +20,12 @@ from custom_components.sentinel.const import (
     DOMAIN,
 )
 import pytest
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.helpers import device_registry as dr
 
 
 @pytest.fixture
@@ -108,3 +110,35 @@ async def test_options_flow_updates_options(hass: HomeAssistant, mock_setup_entr
     assert entry.options[CONF_IGNORED_DEVICE_SOURCES] == ["mobile_app"]
     assert entry.options[CONF_WATCH_STOPPED_ADDONS] is True
     assert entry.options[CONF_APPS_POLL_INTERVAL] == 120
+
+
+async def test_options_sources_use_public_device_registry_api(
+    hass: HomeAssistant, mock_setup_entry,
+):
+    """Enumerate current devices without treating registry.devices as a mapping."""
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_USER}
+    )
+    sentinel_entry = result["result"]
+    registry = dr.async_get(hass)
+    watched_entry = MockConfigEntry(domain="demo", title="Demo")
+    watched_entry.add_to_hass(hass)
+    for source, identifier in [("hue", "first"), ("hue", "second"), ("zwave_js", "third")]:
+        registry.async_get_or_create(
+            config_entry_id=watched_entry.entry_id,
+            identifiers={(source, identifier)},
+        )
+    with patch(
+        "custom_components.sentinel.config_flow.dr.async_entries_for_config_entry",
+        wraps=dr.async_entries_for_config_entry,
+    ) as entries_for_config:
+        options_result = await hass.config_entries.options.async_init(sentinel_entry.entry_id)
+    entries_for_config.assert_any_call(registry, watched_entry.entry_id)
+    selector = next(
+        value for key, value in options_result["data_schema"].schema.items()
+        if key.schema == CONF_IGNORED_DEVICE_SOURCES
+    )
+    assert selector.config["options"] == [
+        {"value": "hue", "label": "hue"},
+        {"value": "zwave_js", "label": "zwave_js"},
+    ]

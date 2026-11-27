@@ -105,12 +105,13 @@ class SentinelOptionsFlow(OptionsFlow):
         # Devices: sources present in the device registry (what's actually installed)
         dev_reg = dr.async_get(self.hass)
         device_sources: set[str] = set()
-        for device in dev_reg.devices.values():
-            identifiers = sorted(device.identifiers)
-            if identifiers:
-                source = str(identifiers[0][0])
-                if source:
-                    device_sources.add(source)
+        for config_entry in self.hass.config_entries.async_entries():
+            for device in dr.async_entries_for_config_entry(dev_reg, config_entry.entry_id):
+                identifiers = sorted(device.identifiers)
+                if identifiers:
+                    source = str(identifiers[0][0])
+                    if source:
+                        device_sources.add(source)
         device_source_options = sorted(
             [{"value": s, "label": s} for s in device_sources],
             key=lambda x: x["label"],
