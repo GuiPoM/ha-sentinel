@@ -1,4 +1,4 @@
-reload:
+reload_item:
   name: Reload integration
   description: Reload a monitored integration by its config entry ID.
   fields:
