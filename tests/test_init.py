@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from unittest.mock import MagicMock
+from pathlib import Path
 
 from custom_components.sentinel.const import (
     CONF_FIRE_EVENTS,
@@ -128,6 +129,19 @@ async def test_service_reload_exists(
     """Test that sentinel.reload_item service is registered."""
     await setup_sentinel(hass, sentinel_config_entry)
     assert hass.services.has_service(DOMAIN, "reload_item")
+
+    service = hass.services.async_services()[DOMAIN]["reload_item"]
+    assert service.admin is True
+
+
+def test_services_yaml_uses_registered_reload_item_name() -> None:
+    """The service metadata must use the same name as the registered service."""
+    services = (
+        Path(__file__).parents[1] / "custom_components" / "sentinel" / "services.yaml"
+    ).read_text(encoding="utf-8")
+
+    assert "reload_item:" in services
+    assert "\nreload:\n" not in services
 
 
 async def test_unload_removes_services(

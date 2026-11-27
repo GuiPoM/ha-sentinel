@@ -70,3 +70,20 @@ def test_public_payload_hides_details_by_default() -> None:
 
     assert payload["name"] == "demo"
     assert payload["reason"] is None
+
+
+def test_public_item_name_uses_stable_identifiers_without_details() -> None:
+    """Each provider gets a stable non-user-provided public name by default."""
+    assert _MODULE.public_item_name(
+        SimpleNamespace(id="light-1", provider="devices", name="Living room"),
+        expose_details=False,
+    ) == "Device light-1"
+    assert _MODULE.public_item_name(
+        SimpleNamespace(
+            id="addon-1",
+            provider="apps",
+            name="Private add-on name",
+            extra={"slug": "private-addon"},
+        ),
+        expose_details=False,
+    ) == "private-addon"
