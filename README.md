@@ -8,6 +8,17 @@
 
 ![Sentinel](icon.png)
 
+> ## 🧪 Sentinel 1.0.0 beta 1
+>
+> This is a **prerelease**, intended for testing before Sentinel 1.0.0. It requires
+> **Home Assistant 2026.8.0 or newer**. Enable beta releases in HACS/Marketplace
+> to select `v1.0.0b1`; otherwise, remain on the latest stable release.
+>
+> **Upgrade changes:** detailed names and raw errors are disabled by default,
+> automatically generated entity IDs may be renamed, and the three dashboard
+> cards are now included. Review the privacy warning and the standalone-card
+> migration instructions below before upgrading.
+
 Sentinel watches your integrations, physical devices and applications (add-ons) in real time. No polling. No YAML. No manual entity wrangling. When something goes wrong, you know immediately.
 
 > ## ⚠️ PRIVACY WARNING — HOME ASSISTANT DATA IS EXPOSED AS PROVIDED
@@ -103,6 +114,7 @@ Sentinel works out of the box — configure only what you need to adjust.
 | Option | Default | Description |
 |---|---|---|
 | Fire events on the HA bus | Yes | Fire `sentinel_item_changed` on every state change — required for automations |
+| Expose detailed names and error messages | No | Opt in to names and raw errors provided by Home Assistant; read the privacy warning before enabling |
 | Grace period (seconds) | 30s | How long an integration must stay failed before being reported (0 = immediate) |
 | Excluded integrations | None | Integrations to exclude from monitoring (dropdown, your install) |
 | Report stopped applications as warning | No | When enabled, stopped applications are reported as warnings |

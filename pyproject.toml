@@ -1,6 +1,6 @@
 [project]
 name = "ha-sentinel"
-version = "0.5.4"
+version = "1.0.0b1"
 description = "Proactive health monitoring for Home Assistant integrations and devices."
 readme = "README.md"
 requires-python = ">=3.13"
